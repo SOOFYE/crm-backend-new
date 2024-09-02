@@ -8,6 +8,14 @@ import { JwtMiddleware } from './middlewares/jwt.middleware';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { IsUniqueConstraint } from './common/validators/is-unique.validator';
+import { CampaignsModule } from './campaigns/campaigns.module';
+import { CampaignTypesModule } from './campaign-types/campaign-types.module';
+import { OrignalCampaignDataModule } from './orignal-campaign-data/orignal-campaign-data.module';
+import { CampaignDataModule } from './campaign-data/campaign-data.module';
+import { S3Module } from './s3/s3.module';
+import { JobsModule } from './job-service/job-service.module';
+
+import { RescheduledCallsModule } from './rescheduled-calls/rescheduled-calls.module';
 
 @Module({
   imports: [
@@ -22,7 +30,14 @@ import { IsUniqueConstraint } from './common/validators/is-unique.validator';
         signOptions: { expiresIn: '15m' },
       }),
     }),
-    AuthModule,], // Import the AuthModule if it's not in AppModule],
+    AuthModule,
+    CampaignsModule,
+    CampaignTypesModule,
+    OrignalCampaignDataModule,
+    CampaignDataModule,
+    S3Module,
+    JobsModule,
+    RescheduledCallsModule], // Import the AuthModule if it's not in AppModule],
   controllers: [AppController],
   providers: [AppService,IsUniqueConstraint],
 })

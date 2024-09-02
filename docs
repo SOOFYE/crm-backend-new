@@ -3,26 +3,14 @@ Now, you can easily run migration commands using npm run:
 
 Generate a new migration:
 
-bash
-Copy code
-npm run migration:generate AddUserTable
-Create an empty migration:
+npm run migration:generate -- AddUserTable
 
-bash
-Copy code
-npm run migration:create CustomMigration
-Run all pending migrations:
-
-bash
-Copy code
 npm run migration:run
+
 Revert the last migration:
 
-bash
-Copy code
 npm run migration:revert
+
 Show the status of all migrations:
 
-bash
-Copy code
 npm run migration:show

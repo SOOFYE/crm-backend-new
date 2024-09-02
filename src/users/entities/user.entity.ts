@@ -1,7 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, BeforeInsert, BeforeUpdate } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, BeforeInsert, BeforeUpdate, OneToMany } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ApiProperty } from '@nestjs/swagger';
-import { UserRole } from 'src/common/enums/roles.enum';
+import { UserRole } from '../../common/enums/roles.enum';
+
+
 
 
 

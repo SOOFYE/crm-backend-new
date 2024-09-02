@@ -15,8 +15,8 @@ export const AppDataSource = new DataSource({
   username: configService.get<string>('DATABASE_USERNAME'),
   password: configService.get<string>('DATABASE_PASSWORD'),
   database: configService.get<string>('DATABASE_NAME'),
-  entities: [__dirname + '/../**/*.entity.js'],  // Match .js files in dist/
-  migrations: [__dirname + '/migrations/*.js'],  // For migrations in dist/migrations
+  entities: [__dirname + '/../**/*.entity.ts'],  // Match .js files in dist/
+  migrations: [__dirname + '/migrations/*.ts'],  // For migrations in dist/migrations
   synchronize: false,
   logging: true,
   cli: {
