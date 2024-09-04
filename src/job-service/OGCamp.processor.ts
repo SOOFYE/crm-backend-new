@@ -202,6 +202,7 @@ export class OriginalCampaignDataProcessor {
           campaignData.s3Url = newS3Url;
           campaignData.duplicateStatsS3Url = duplicateCsvUrl
           campaignData.replicatedStatsS3Url = repeatedCsvUrl
+          campaignData.campaign = null;
   
           // Save the updated CampaignData
           await this.campaignDataRepository.save(campaignData);

@@ -2,17 +2,18 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsNumber, IsOptional, IsString, IsArray, IsEnum } from "class-validator";
 import { PaginationOptions } from "../../common/interfaces/pagination-options.interface";
 import { CampaignEntity } from "../entities/campaign.entity";
+import { Type } from "class-transformer";
 
 export class GetAllCampaignsDto implements PaginationOptions<CampaignEntity> {
   
     @ApiPropertyOptional({ description: 'Page number', default: 1 })
     @IsNumber()
-    @IsOptional()
+    @Type(()=>Number)
     page: number = 1;
   
     @ApiPropertyOptional({ description: 'Number of items per page', default: 10 })
     @IsNumber()
-    @IsOptional()
+    @Type(()=>Number)
     limit: number = 10;
   
     @ApiPropertyOptional({ description: 'Search key for filtering campaigns' })
@@ -38,3 +39,4 @@ export class GetAllCampaignsDto implements PaginationOptions<CampaignEntity> {
     @IsOptional()
     orderDirection?: 'ASC' | 'DESC';
   }
+

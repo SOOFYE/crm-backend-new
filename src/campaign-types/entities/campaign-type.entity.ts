@@ -16,7 +16,7 @@ export class CampaignType {
   @Column()
   description: string;
 
-  @OneToMany(() => CampaignEntity, campaign => campaign.type)
+  @OneToMany(() => CampaignEntity, campaign => campaign.campaignType)
   campaigns: CampaignEntity[];
 
   @OneToMany(() => OriginalCampaignData, campaign => campaign.campaignType)

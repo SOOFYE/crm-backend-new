@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { CampaignData } from "../campaign-data/entities/campaign-datum.entity";
 import { CampaignDataEnum } from "../common/enums/campaign-dataum.enum";
 import { UserEntity } from "../users/entities/user.entity";
@@ -11,11 +11,16 @@ import { PaginationUtil } from "../utils/pagination.util";
 import { PaginationOptions } from "../common/interfaces/pagination-options.interface";
 import { PaginationResult } from "../common/interfaces/pagination-result.interface";
 import { GetAllCampaignsDto } from "./dto/GetAllCampaigns.dto";
-import * as csvParser from 'csv-parser';
 import * as fs from 'fs';
 import { promisify } from 'util';
 import { PaginateCampaignDataDto } from "../campaign-data/dto/PaginateCampaignData.dto";
 import { CampaignDataService } from "../campaign-data/campaign-data.service";
+import { CampaignType } from "../campaign-types/entities/campaign-type.entity";
+import * as csvParser from 'csv-parser';
+import * as streamifier from 'streamifier';
+import { stringify } from 'csv-stringify/sync'; 
+import { S3Service } from "../s3/s3.service";
+
 
 @Injectable()
 export class CampaignsService {
@@ -26,172 +31,181 @@ export class CampaignsService {
     private readonly campaignDataRepository: Repository<CampaignData>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(CampaignType)
+    private readonly campaignTypeRepository: Repository<CampaignType>,
     private readonly paginationUtil: PaginationUtil,
-    private readonly campaignDataService : CampaignDataService
+    private readonly campaignDataService : CampaignDataService,
+    private readonly s3Service: S3Service
+
   ) {}
 
-  async createCampaign(createCampaignDto: CreateCampaignDto, zipCodeFile: Express.Multer.File): Promise<CampaignEntity> {
-    const { name, description, processedDataId, status, agents } = createCampaignDto;
+  async createCampaign(
+    createCampaignDto: CreateCampaignDto,
+    csvFile: Express.Multer.File,
+    
+  ): Promise<CampaignEntity> {
+    const { name, description, status, agents: agentIds, campaignTypeId, filterField } = createCampaignDto;
 
-    const processedData = await this.campaignDataRepository.findOne({
-      where: { id: processedDataId, status: CampaignDataEnum.SUCCESS },
+    // Step 1: Find the Campaign Type
+    const campaignType = await this.campaignTypeRepository.findOne({ where: { id: campaignTypeId } });
+    if (!campaignType) {
+      throw new HttpException('Campaign type not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Step 2: Find the agents by their IDs
+    const agents = await this.userRepository.findBy({
+      id: In(agentIds) 
     });
-    if (!processedData) {
-      throw new HttpException('Processed data not found or not in SUCCESS status', HttpStatus.BAD_REQUEST);
+
+    if (agents.length !== agentIds.length) {
+      throw new HttpException(
+        'One or more agents not found',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
-    const linkedAgents = await this.userRepository.findByIds(agents);
-    if (linkedAgents.length !== agents.length) {
-      throw new HttpException('Some agents not found', HttpStatus.BAD_REQUEST);
-    }
+    // Step 3: Parse the CSV file to generate the filter criteria
+    const filterCriteria = await this.generateFilterCriteriaFromCsv(csvFile);
 
-    let goodZipCodes = [];
-    if (zipCodeFile) {
-      goodZipCodes = await this.parseZipCodeFile(zipCodeFile);
-    }
-
+    // Step 4: Create a new Campaign entity
     const campaign = this.campaignRepository.create({
       name,
       description,
       status,
-      processedData,
-      agents: linkedAgents,
-      goodZipCodes,
+      agents,
+      filterField,
+      filterCriteria,
+      campaignType: campaignType,
     });
 
+    // Step 5: Save the Campaign entity
     return this.campaignRepository.save(campaign);
   }
 
-  private async parseZipCodeFile(file: Express.Multer.File): Promise<string[]> {
-    const parseCsv = promisify(csvParser);
-    const goodZipCodes: string[] = [];
-
-    const stream = fs.createReadStream(file.path).pipe(csvParser());
-    for await (const row of stream) {
-      goodZipCodes.push(row['good_zipcodes']);  // Adjust this based on your file structure
-    }
-
-    return goodZipCodes;
-  }
-
-  async getFilteredPreprocessedData(campaignId: string, paginationOptions: PaginateCampaignDataDto) {
-    const campaign = await this.campaignRepository.findOne({
-      where: { id: campaignId },
-      relations: ['processedData'],
-    });
-
-    if (!campaign) {
-      throw new NotFoundException('Campaign not found');
-    }
-
-    const goodZipCodes = campaign.goodZipCodes;
-
-    return this.campaignDataService.paginateCampaignData(campaign.processedData.id, paginationOptions, goodZipCodes);
-  }
-
-
-  async updateCampaign(id: string, updateCampaignDto: UpdateCampaignDto): Promise<CampaignEntity> {
+  private async generateFilterCriteriaFromCsv(csvFile: Express.Multer.File): Promise<Record<string, string[]>> {
     try {
-      const campaign = await this.campaignRepository.findOne({ where: { id }, relations: ['processedData', 'agents'] });
-      
-      if (!campaign) {
-        throw new NotFoundException('Campaign not found');
-      }
-
-      if (updateCampaignDto.name !== undefined) {
-        campaign.name = updateCampaignDto.name;
-      }
-
-      if (updateCampaignDto.description !== undefined) {
-        campaign.description = updateCampaignDto.description;
-      }
-
-      if (updateCampaignDto.agents !== undefined) {
-        // Update agents logic here
-        const linkedAgents = await this.userRepository.findByIds(updateCampaignDto.agents);
-        if (linkedAgents.length !== updateCampaignDto.agents.length) {
-          throw new HttpException('Some agents not found', HttpStatus.BAD_REQUEST);
-        }
-        campaign.agents = linkedAgents;
-      }
-
-      if (updateCampaignDto.status !== undefined) {
-        if (campaign.processedData?.status === CampaignDataEnum.SUCCESS) {
-          campaign.status = updateCampaignDto.status;
-        } else {
-          throw new HttpException('Cannot update campaign status unless processed data is successful.', HttpStatus.BAD_REQUEST);
+      const filterCriteria: Record<string, string[]> = {};
+  
+      // Use streamifier to convert buffer to a readable stream if the file is uploaded in-memory
+      const stream = streamifier.createReadStream(csvFile.buffer).pipe(csvParser());
+  
+      for await (const row of stream) {
+        for (const [key, value] of Object.entries(row)) {
+          if (!filterCriteria[key]) {
+            filterCriteria[key] = [];
+          }
+          filterCriteria[key].push(value.toString());
         }
       }
-
-      return await this.campaignRepository.save(campaign);
+  
+      return filterCriteria;
     } catch (error) {
+      console.log(error);
+      throw new HttpException('Failed to parse CSV file for filter criteria', HttpStatus.BAD_REQUEST);
+    }
+  }
+
+
+  async getAllCampaignIdsAndNames(): Promise<CampaignEntity[]> {
+    try {
+      const campaigns =  this.campaignRepository.find({
+        select: ['id', 'name'],
+      });
+      return campaigns;
+    } catch (error) {
+      throw new Error(`Failed to get campaigns: ${error.message}`);
+    }
+  }
+
+
+  async getAllCampaigns(options: GetAllCampaignsDto):Promise<PaginationResult<CampaignEntity>> {
+
+      return this.paginationUtil.paginate(this.campaignRepository, options, {
+        alias: 'campaign',
+        relations: {
+          campaignType: 'campaignType',
+          agents: 'agents',
+        },
+      });
+    } catch (error) {
+      console.log(error)
       throw new HttpException(
         {
           status: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: error.message || 'Failed to update campaign',
+          error: error.message || 'Failed to retrieve campaigns',
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
-    }
-  }
-  async getOneCampaign(id: string): Promise<CampaignEntity> {
-    const campaign = await this.campaignRepository.findOne({
-      where: { id },
-      relations: ['processedData', 'agents', 'type'],
-      select: {
-        processedData: {
-          id: true, // Include other fields as needed, but exclude `data`
-          name: true,
-          s3Url: true,
-          status: true,
-        },
-      },
-    });
 
-    if (!campaign) {
-      throw new NotFoundException('Campaign not found');
+      
     }
 
-    return campaign;
-  }
 
-  async getAllCampaigns(paginationOptions: GetAllCampaignsDto): Promise<PaginationResult<CampaignEntity>> {
-    return this.paginationUtil.paginate(this.campaignRepository, paginationOptions, {
-      alias: 'campaign',
-      relations: {
-        processedData: {
-          alias: 'processedData',
-          fields: ['id', 'name', 's3Url', 'status'], // Specify fields to select from processedData
-        },
-        agents: 'agents',
-        type: 'type',
-      },
-    });
-  }
-
-  async getCampaignsByAgent(agentId: string, paginationOptions: PaginationOptions<CampaignEntity>): Promise<PaginationResult<CampaignEntity>> {
-    const agent = await this.userRepository.findOne({ where: { id: agentId } });
+    async getFilteredData(
+      campaignId: string,
+      options: PaginationOptions<any>,
+    ) {
+      // Fetch the campaign by ID
+      const campaign = await this.campaignRepository.findOne({
+        where: { id: campaignId },
+      });
   
-    if (!agent) {
-      throw new NotFoundException('Agent not found');
+      if (!campaign) {
+        throw new HttpException('Campaign not found', HttpStatus.NOT_FOUND);
+      }
+  
+      const filteredData = campaign.filteredData || [];
+  
+      // Apply dynamic pagination, searching, filtering, and sorting using PaginationUtil
+      return this.paginationUtil.paginateArray(filteredData, options);
+    }
+
+
+    async getSingleCampaign(campaignId: string): Promise<CampaignEntity> {
+      try {
+        // Find the campaign and explicitly exclude the 'filteredData' field
+        const campaign = await this.campaignRepository
+          .createQueryBuilder('campaign')
+          .leftJoinAndSelect('campaign.campaignType', 'campaignType')
+          .leftJoinAndSelect('campaign.agents', 'agents')
+          .leftJoinAndSelect('campaign.processedData', 'processedData')
+          .select([
+            'campaign.id',
+            'campaign.name',
+            'campaign.description',
+            'campaign.status',
+            // 'campaign.filterField',
+            'campaign.filterCriteria',
+            'campaignType.id',
+            'campaignType.name',
+            'agents.id',
+            'agents.firstname',
+            'agents.lastname',
+            'agents.username',
+            'processedData.id',
+            'processedData.name',
+            'processedData.s3Url',
+            // 'processedData.status',
+          ]) // Explicitly selecting fields excluding 'filteredData'
+          .where('campaign.id = :campaignId', { campaignId })
+          .getOne();
+  
+        if (!campaign) {
+          throw new HttpException('Campaign not found', HttpStatus.NOT_FOUND);
+        }
+  
+        return campaign;
+      } catch (error) {
+        throw new HttpException(
+          {
+            status: HttpStatus.INTERNAL_SERVER_ERROR,
+            error: error.message || 'Failed to retrieve campaign',
+          },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
     }
   
-    return this.paginationUtil.paginate(this.campaignRepository, paginationOptions, {
-      alias: 'campaign',
-      relations: {
-        processedData: {
-          alias: 'processedData',
-          fields: ['id', 'name', 's3Url', 'status'], // Specify fields to select from processedData
-        },
-        agents: 'agents',
-        type: 'type',
-      },
-      where: qb => {
-        qb.andWhere('agents.id = :agentId', { agentId });
-      },
-    });
-  }
-
-
 
 }
+

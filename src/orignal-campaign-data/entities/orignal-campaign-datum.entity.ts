@@ -25,11 +25,7 @@ export class OriginalCampaignData {
     @OneToOne(() => CampaignData, data => data.originalData, { nullable: true })
     @JoinColumn()  // This decorator tells TypeORM which column to use for the foreign key
     preprocessedData: CampaignData; // Relation to the preprocessed data, will be linked once processing is complete
-  
-    // @OneToOne(() => Campaign, campaign => campaign.originalData, { nullable: true })
-    // @JoinColumn()  // This decorator tells TypeORM which column to use for the foreign key
-    // campaign: Campaign; // Relation to campaign that was processed
-  
+
     @CreateDateColumn()
     createdAt: Date; // Timestamp for when the record was created
   

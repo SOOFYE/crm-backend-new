@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req, UploadedFile, UseInterceptors, HttpException, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { UserRole } from '../common/enums/roles.enum';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
@@ -12,6 +12,7 @@ import { GetCampaignsByAgentDto } from './dto/GetCampaignsByAgent.dto';
 import { AuthenticatedRequest } from '../common/interfaces/authenticated-request.interface';
 import { PaginateCampaignDataDto } from '../campaign-data/dto/PaginateCampaignData.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { PaginateFilteredDataDto } from './dto/FindFilteredData.dto';
 
 @ApiTags('Campaigns')
 //@ApiBearerAuth()
@@ -21,61 +22,44 @@ export class CampaignsController {
   constructor(private readonly campaignsService: CampaignsService) {}
 
   @Post('create')
-  @UseInterceptors(FileInterceptor('zipCodeFile'))
+  @UseInterceptors(FileInterceptor('fileCriteria'))
   async createCampaign(
     @Body() createCampaignDto: CreateCampaignDto,
-    @UploadedFile() zipCodeFile: Express.Multer.File,
+    @UploadedFile() filterCriteria: Express.Multer.File,
   ) {
-    return this.campaignsService.createCampaign(createCampaignDto, zipCodeFile);
-  }
-
-  @Patch(':id')
-  //@Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Update a campaign by ID' })
-  @ApiParam({ name: 'id', description: 'Campaign ID', type: String })
-  async updateCampaign(
-    @Param('id') id: string,
-    @Body() updateCampaignDto: UpdateCampaignDto,
-  ) {
-    return this.campaignsService.updateCampaign(id, updateCampaignDto);
-  }
-
-  @Get(':id')
-  //@Roles(UserRole.ADMIN, UserRole.AGENT)
-  @ApiOperation({ summary: 'Get a single campaign by ID' })
-  @ApiParam({ name: 'id', description: 'Campaign ID', type: String })
-  async getOneCampaign(@Param('id') id: string) {
-    return this.campaignsService.getOneCampaign(id);
+    return await this.campaignsService.createCampaign(createCampaignDto, filterCriteria);
   }
 
   @Get()
-  //@Roles(UserRole.ADMIN, UserRole.AGENT)
-  @ApiOperation({ summary: 'Get all campaigns with pagination, filtering, and sorting' })
+  @ApiOperation({ summary: 'Get all campaigns with pagination' })
+
   async getAllCampaigns(@Query() query: GetAllCampaignsDto) {
-    return this.campaignsService.getAllCampaigns(query);
+      return await this.campaignsService.getAllCampaigns(query);
   }
 
 
-  @Get('agent/:agentId')
-  @Roles(UserRole.ADMIN, UserRole.AGENT)
-  @ApiOperation({ summary: 'Get campaigns assigned to a particular agent with pagination' })
-  async getCampaignsByAgent(
-    @Req() req: AuthenticatedRequest,
-    @Query() getCampaignsByAgentDto: GetCampaignsByAgentDto,
+  @Get('campaign-ids')
+  async getAllCampaignIdsAndNames(){
+    return await this.campaignsService.getAllCampaignIdsAndNames()
+  }
+
+  @Get(':id')
+  async getSingleCampaignData(
+    @Param('id') campaignId: string,
   ) {
-    
-    const agentId = req.user.id
-    return this.campaignsService.getCampaignsByAgent(agentId, getCampaignsByAgentDto);
+    return this.campaignsService.getSingleCampaign(campaignId);
   }
 
-  @Get(':id/campaign-data')
-  async getFilteredPreprocessedData(
-    @Param('id') id: string,
-    @Query() paginateCampaignDataDto: PaginateCampaignDataDto,
+
+
+  @Get(':id/filtered-data')
+  async getFilteredData(
+    @Param('id') campaignId: string,
+    @Query() query: PaginateFilteredDataDto,
   ) {
-    return this.campaignsService.getFilteredPreprocessedData(id, paginateCampaignDataDto);
+    return this.campaignsService.getFilteredData(campaignId, query);
   }
 
-  
+
 
 }

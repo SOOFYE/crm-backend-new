@@ -1,6 +1,6 @@
-import { Controller, Post, Patch, Body, Param, UseGuards, UploadedFile, UseInterceptors, Get, Query } from '@nestjs/common';
+import { Controller, Post, Patch, Body, Param, UseGuards, UploadedFile, UseInterceptors, Get, Query, Delete, HttpCode, HttpStatus } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody, ApiParam } from '@nestjs/swagger';
 import { OriginalCampaignDataService } from './orignal-campaign-data.service';
 import { FileUploadDto } from './dto/FileUpload-OGData.dto';
 import { UserRole } from '../common/enums/roles.enum';
@@ -31,7 +31,6 @@ export class OriginalCampaignDataController {
     return this.originalCampaignDataService.uploadOriginalData(file, body.campaignTypeId, body.duplicateFieldCheck);
   }
 
-
   @Get()
   //@Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Get all campaign data with pagination, filtering, and sorting' })
@@ -39,4 +38,12 @@ export class OriginalCampaignDataController {
     return this.originalCampaignDataService.findAll(query);
   }
 
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Soft delete original campaign data by ID' })
+  @ApiParam({ name: 'id', description: 'ID of the original campaign data to delete' })
+  async deleteUploadedData(@Param('id') id: string): Promise<void> {
+    await this.originalCampaignDataService.deleteUploadedData(id);
+    
+  }
 }

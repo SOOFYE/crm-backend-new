@@ -93,8 +93,8 @@ export class OriginalCampaignDataService {
         relations: {
           campaignType: 'campaignType',
           preprocessedData: {
-            alias: 'preprocessedDaa',
-            fields: ['name', 'status', 's3Url','duplicateStatsS3Url','replicatedStatsS3Url'], // Only these fields will be selected
+            alias: 'preprocessedData',
+            fields: ['name', 'status', 's3Url','duplicateStatsS3Url','replicatedStatsS3Url','campaign'], // Only these fields will be selected
           },
         }
       });
@@ -103,6 +103,46 @@ export class OriginalCampaignDataService {
         {
           status: HttpStatus.INTERNAL_SERVER_ERROR,
           error: error.message || 'Failed to retrieve original campaign data',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+
+  async deleteUploadedData(id: OriginalCampaignData['id']): Promise<void> {
+    try {
+      // Find the original data with related preprocessed data
+      const originalData = await this.originalDataRepository.findOne({
+        where: { id },
+        relations: ['preprocessedData'],
+      });
+  
+      if (!originalData) {
+        throw new HttpException('Original campaign data not found', HttpStatus.NOT_FOUND);
+      }
+  
+      // If there's associated preprocessed data, soft delete it and unlink from any campaign
+      if (originalData.preprocessedData) {
+        const campaignData = originalData.preprocessedData;
+  
+        // Unlink the campaignData from any associated campaign
+        if (campaignData.campaign) {
+          campaignData.campaign.processedData = null;
+          await this.campaignDataRepository.save(campaignData);  // Update to reflect unlinking
+        }
+  
+        // Soft delete the campaignData
+        await this.campaignDataRepository.softDelete(campaignData.id);
+      }
+  
+      // Soft delete the original data
+      await this.originalDataRepository.softDelete(id);
+    } catch (error) {
+      throw new HttpException(
+        {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: error.message || 'Failed to delete uploaded data',
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );

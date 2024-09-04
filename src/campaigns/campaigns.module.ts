@@ -7,10 +7,11 @@ import { CampaignData } from '../campaign-data/entities/campaign-datum.entity';
 import { CampaignsService } from './campaigns.service';
 import { UtilsModule } from '../utils/utils.module';
 import { CampaignDataModule } from '../campaign-data/campaign-data.module';
+import { CampaignType } from '../campaign-types/entities/campaign-type.entity';
 
 
 @Module({
-  imports:[TypeOrmModule.forFeature([CampaignEntity,CampaignData,UserEntity]),UtilsModule,CampaignDataModule],
+  imports:[TypeOrmModule.forFeature([CampaignEntity,CampaignData,UserEntity,CampaignType]),UtilsModule,CampaignDataModule],
   controllers: [CampaignsController],
   providers: [CampaignsService],
 })

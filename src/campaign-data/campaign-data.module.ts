@@ -5,9 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CampaignData } from './entities/campaign-datum.entity';
 import { S3Module } from '../s3/s3.module';
 import { RescheduledCallsModule } from '../rescheduled-calls/rescheduled-calls.module';
+import { CampaignEntity } from '../campaigns/entities/campaign.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CampaignData]),RescheduledCallsModule],
+  imports: [TypeOrmModule.forFeature([CampaignData,CampaignEntity]),RescheduledCallsModule],
   controllers: [CampaignDataController],
   providers: [CampaignDataService],
   exports: [CampaignDataService ]

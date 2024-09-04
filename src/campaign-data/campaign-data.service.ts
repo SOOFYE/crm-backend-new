@@ -9,14 +9,100 @@ import { CampaignData } from './entities/campaign-datum.entity';
 import { createObjectCsvStringifier } from 'csv-writer';
 import { CallResultEnum } from '../common/enums/call-result.enum';
 import { RescheduledCallsService } from '../rescheduled-calls/rescheduled-calls.service';
+import { CampaignDataEnum } from '../common/enums/campaign-dataum.enum';
+import { CampaignEntity } from '../campaigns/entities/campaign.entity';
 
 @Injectable()
 export class CampaignDataService {
   constructor(
     @InjectRepository(CampaignData)
     private readonly campaignDataRepository: Repository<CampaignData>,
+    @InjectRepository(CampaignEntity)
+    private readonly campaignRepository: Repository<CampaignEntity>,
     private readonly rescheduledCallService: RescheduledCallsService
   ) {}
+
+
+  async linkCampaignData(campaignDataId: string, campaignId: string): Promise<CampaignData> {
+    try {
+      // Fetch the campaign data and ensure it includes the campaign relation
+      const campaignData = await this.campaignDataRepository.findOne({
+        where: { id: campaignDataId },
+        relations: ['campaign', 'campaignType'],
+      });
+  
+      if (!campaignData) {
+        throw new HttpException('Campaign data not found', HttpStatus.NOT_FOUND);
+      }
+  
+      if (campaignData.campaign !== null) {
+        throw new HttpException('Campaign is already linked', HttpStatus.BAD_REQUEST);
+      }
+  
+      if (campaignData.status !== CampaignDataEnum.SUCCESS) {
+        throw new HttpException('Campaign data processing not completed', HttpStatus.BAD_REQUEST);
+      }
+  
+      // Fetch the campaign and ensure it includes the campaignType relation
+      const campaign = await this.campaignRepository.findOne({
+        where: { id: campaignId },
+        relations: ['type'],
+      });
+  
+      if (!campaign) {
+        throw new HttpException('Campaign not found', HttpStatus.NOT_FOUND);
+      }
+  
+      // Ensure the campaign type IDs match
+      if (campaignData.campaignType.id !== campaign.campaignType.id) {
+        throw new HttpException('Campaign type mismatch between campaign data and campaign', HttpStatus.BAD_REQUEST);
+      }
+  
+      // Process filter criteria and generate filtered data
+      const filteredData = this.processFilterCriteria(campaignData.data, campaign.filterField);
+  
+      // Save the filtered data in the campaign entity
+      campaign.filteredData = filteredData;
+      await this.campaignRepository.save(campaign);
+  
+      // Link the campaign to the campaign data
+      campaignData.campaign = campaign;
+      await this.campaignDataRepository.save(campaignData);
+  
+      return campaignData;
+    } catch (error) {
+      throw new HttpException(
+        {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: error.message || 'Failed to link campaign data',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+  
+  
+  private processFilterCriteria(data: any[], filterFields: string[]): any {
+    // Create an empty object to store filtered data
+    const filteredData: Record<string, any[]> = {};
+  
+    // Initialize the filtered data structure based on the filter fields
+    filterFields.forEach(field => {
+      filteredData[field] = [];
+    });
+  
+    // Process each record in the data and filter based on the provided fields
+    data.forEach(record => {
+      filterFields.forEach(field => {
+        if (record[field]) {
+          filteredData[field].push(record[field]);
+        }
+      });
+    });
+  
+    return filteredData;
+  }
+
   async paginateCampaignData(id: string, options: PaginateCampaignDataDto, goodZipCodes?: string[]) {
     try {
       const campaignData = await this.campaignDataRepository.findOne({

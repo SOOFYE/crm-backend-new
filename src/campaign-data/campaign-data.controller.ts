@@ -4,6 +4,7 @@ import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { PaginateCampaignDataDto } from './dto/PaginateCampaignData.dto';
 import { CallResultEnum } from '../common/enums/call-result.enum';
 import { UpdateCallResultDto } from './dto/updatecallresult.dto';
+import { CampaignData } from './entities/campaign-datum.entity';
 
 @ApiTags('Campaign Data')
 @Controller('campaign-data')
@@ -37,6 +38,14 @@ export class CampaignDataController {
       updateCallResultDto.callResult,
       updateCallResultDto.rescheduledDate // Include rescheduledDate in the service call
     );
+  }
+
+  @Post(':campaignDataId/link-campaign/:campaignId')
+  async linkCampaign(
+    @Param('campaignDataId') campaignDataId: string,
+    @Param('campaignId') campaignId: string,
+  ): Promise<CampaignData> {
+    return this.campaignDataService.linkCampaignData(campaignDataId, campaignId);
   }
 
 }
