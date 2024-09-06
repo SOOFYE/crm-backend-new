@@ -24,7 +24,7 @@ export class CampaignData {
     @ManyToOne(() => CampaignType, campaignType => campaignType.preprocessedData)
     campaignType: CampaignType; // Link to the campaign type
 
-    @OneToOne(() => CampaignEntity, campaign => campaign.processedData, { nullable: true })
+    @OneToOne(() => CampaignEntity, campaign => campaign.processedData, { nullable: true, cascade:true})
     @JoinColumn()
     campaign: CampaignEntity; // Relation to the campaign that was processed
 

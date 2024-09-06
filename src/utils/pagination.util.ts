@@ -11,8 +11,8 @@ export class PaginationUtil {
     options: PaginationOptions<T>,
     joinOptions?: {
       alias: string;
-      relations?: { [key: string]: string | { alias: string; fields: string[] } };
-      where?: (qb: SelectQueryBuilder<T>) => void; // Added support for a where function
+      relations?: { [key: string]: string | { alias: string; fields: string[]; relations?: { [key: string]: { alias: string; fields: string[] } } } };
+      where?: (qb: SelectQueryBuilder<T>) => void; 
     }
   ): Promise<PaginationResult<T>> {
     const { page, limit, searchKey, searchField, filters, orderBy, orderDirection } = options;
@@ -28,6 +28,16 @@ export class PaginationUtil {
           relation.fields.forEach(field => {
             query.addSelect(`${relation.alias}.${field}`, `${relation.alias}_${field}`);
           });
+
+          // Handle nested relations
+          if (relation.relations) {
+            for (const [nestedAlias, nestedRelation] of Object.entries(relation.relations)) {
+              query.leftJoinAndSelect(`${relation.alias}.${nestedAlias}`, nestedRelation.alias);
+              nestedRelation.fields.forEach(field => {
+                query.addSelect(`${nestedRelation.alias}.${field}`, `${nestedRelation.alias}_${field}`);
+              });
+            }
+          }
         }
       }
     }
@@ -35,11 +45,6 @@ export class PaginationUtil {
     if (joinOptions?.where) {
       joinOptions.where(query);
     }
-
-    // if (searchKey && searchField) {
-    //   const searchConditions = searchField.map(field => `${alias}.${String(field)} LIKE :searchKey`).join(' OR ');
-    //   query.andWhere(searchConditions, { searchKey: `%${searchKey}%` });
-    // }
 
     if (searchKey && searchField) {
       const searchConditions = searchField.map(field => {
@@ -50,12 +55,11 @@ export class PaginationUtil {
           return `${alias}.${String(field)} LIKE :searchKey`;
         }
       }).join(' OR ');
-    
+
       query.andWhere(searchConditions, { searchKey: `%${searchKey}%` });
     }
 
-
-    if (filters!==undefined) {
+    if (filters !== undefined) {
       for (const [key, value] of Object.entries(filters)) {
         if (value !== null && value !== undefined) {
           query.andWhere(`${alias}.${key} = :${key}`, { [key]: value });
@@ -63,19 +67,14 @@ export class PaginationUtil {
       }
     }
 
-  
-
     if (orderBy) {
       query.orderBy(`${alias}.${String(orderBy)}`, orderDirection || 'ASC');
     }
-
 
     const [data, total] = await query
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
-
-      
 
     const hasNext = page * limit < total;
 

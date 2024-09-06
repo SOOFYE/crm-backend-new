@@ -10,6 +10,7 @@ import { S3Service } from '../s3/s3.service';
 import { PaginationUtil } from '../utils/pagination.util';
 import { FindAllCampaignDataDto } from './dto/find-all-ogcamp.dto';
 import { PaginationOptions } from '../common/interfaces/pagination-options.interface';
+import { CampaignEntity } from '../campaigns/entities/campaign.entity';
 
 @Injectable()
 export class OriginalCampaignDataService {
@@ -18,6 +19,8 @@ export class OriginalCampaignDataService {
     private readonly originalDataRepository: Repository<OriginalCampaignData>,
     @InjectRepository(CampaignData)
     private readonly campaignDataRepository: Repository<CampaignData>,
+    @InjectRepository(CampaignEntity)
+    private readonly campaignsRepository: Repository<CampaignEntity>,
     private readonly s3Service: S3Service,
     private readonly jobService: JobService, // Replace this with your actual job service implementation
     private readonly campaignTypeService: CampaignTypesService,
@@ -86,7 +89,10 @@ export class OriginalCampaignDataService {
         filters: query.filters,
         orderBy: query.orderBy,
         orderDirection: query.orderDirection,
+
+        
       };
+
   
       return this.paginationUtil.paginate(this.originalDataRepository, paginationOptions, {
         alias: 'originalData',
@@ -94,9 +100,15 @@ export class OriginalCampaignDataService {
           campaignType: 'campaignType',
           preprocessedData: {
             alias: 'preprocessedData',
-            fields: ['name', 'status', 's3Url','duplicateStatsS3Url','replicatedStatsS3Url','campaign'], // Only these fields will be selected
+            fields: ['id', 'name', 'status', 's3Url', 'duplicateStatsS3Url', 'replicatedStatsS3Url'],
+            relations: { 
+              campaign: {
+                alias: 'campaign',
+                fields: ['id', 'name'], // Add relevant fields you need from the campaign
+              },
+            },
           },
-        }
+        },
       });
     } catch (error) {
       throw new HttpException(
@@ -122,14 +134,21 @@ export class OriginalCampaignDataService {
         throw new HttpException('Original campaign data not found', HttpStatus.NOT_FOUND);
       }
   
+      const preprocessedData = originalData.preprocessedData;
+  
       // If there's associated preprocessed data, soft delete it and unlink from any campaign
-      if (originalData.preprocessedData) {
-        const campaignData = originalData.preprocessedData;
+      if (preprocessedData) {
+        const campaignData = preprocessedData;
   
         // Unlink the campaignData from any associated campaign
         if (campaignData.campaign) {
-          campaignData.campaign.processedData = null;
-          await this.campaignDataRepository.save(campaignData);  // Update to reflect unlinking
+          // Unlink the processedData from the campaign entity
+          const campaign = campaignData.campaign;
+          campaign.processedData = null;
+          campaignData.campaign = null;
+  
+          // Save the campaign entity after unlinking
+          await this.campaignsRepository.save(campaign);
         }
   
         // Soft delete the campaignData

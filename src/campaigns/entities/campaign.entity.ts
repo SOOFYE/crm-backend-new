@@ -32,11 +32,14 @@ export class CampaignEntity {
   @Column('simple-array', { nullable: true })
   filterField: string[];  // Columns from CSV used for filtering (e.g., ['zipcodes', 'states'])
 
-  @Column('jsonb')
-  filterCriteria: Record<string, string[]>;  // Filter criteria stored as key-value pairs, where the key is the column name, and the value is an array of criteria
+  @Column('jsonb', {nullable: true})
+  filterCriteria?: Record<string, string[]>;  // Filter criteria stored as key-value pairs, where the key is the column name, and the value is an array of criteria
 
   @Column('jsonb', { nullable: true })
   filteredData: any[];  // Filtered data based on the criteria
+
+  @Column('jsonb', { nullable: true })
+  additionalFields: { name: string; type: string }[];  // Array of objects representing additional fields (name and type)
 
   @CreateDateColumn()
   createdAt: Date; // Timestamp for when the record was created

@@ -8,10 +8,11 @@ import { CampaignsService } from './campaigns.service';
 import { UtilsModule } from '../utils/utils.module';
 import { CampaignDataModule } from '../campaign-data/campaign-data.module';
 import { CampaignType } from '../campaign-types/entities/campaign-type.entity';
+import { S3Module } from '../s3/s3.module';
 
 
 @Module({
-  imports:[TypeOrmModule.forFeature([CampaignEntity,CampaignData,UserEntity,CampaignType]),UtilsModule,CampaignDataModule],
+  imports:[TypeOrmModule.forFeature([CampaignEntity,CampaignData,UserEntity,CampaignType]),UtilsModule,CampaignDataModule,S3Module],
   controllers: [CampaignsController],
   providers: [CampaignsService],
 })

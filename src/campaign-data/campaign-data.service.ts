@@ -23,7 +23,7 @@ export class CampaignDataService {
   ) {}
 
 
-  async linkCampaignData(campaignDataId: string, campaignId: string): Promise<CampaignData> {
+  async linkCampaignData(campaignDataId: string, campaignId: string): Promise<boolean> {
     try {
       // Fetch the campaign data and ensure it includes the campaign relation
       const campaignData = await this.campaignDataRepository.findOne({
@@ -46,7 +46,7 @@ export class CampaignDataService {
       // Fetch the campaign and ensure it includes the campaignType relation
       const campaign = await this.campaignRepository.findOne({
         where: { id: campaignId },
-        relations: ['type'],
+        relations: ['campaignType', 'processedData'],
       });
   
       if (!campaign) {
@@ -58,18 +58,44 @@ export class CampaignDataService {
         throw new HttpException('Campaign type mismatch between campaign data and campaign', HttpStatus.BAD_REQUEST);
       }
   
-      // Process filter criteria and generate filtered data
-      const filteredData = this.processFilterCriteria(campaignData.data, campaign.filterField);
+      // Check if campaign.filterField fields exist in the first object of campaignData.data
+      const firstDataRecord = campaignData.data?.[0];
+      if (!firstDataRecord) {
+        throw new HttpException('No data available in campaign data', HttpStatus.BAD_REQUEST);
+      }
   
-      // Save the filtered data in the campaign entity
+      // If filterField exists, validate the fields
+      if (campaign.filterField?.length) {
+        const missingFields = campaign.filterField.filter(field => !(field in firstDataRecord));
+        if (missingFields.length > 0) {
+          throw new HttpException(
+            `The following fields are missing in the campaign data: ${missingFields.join(', ')}`,
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+  
+      // If either filterField or filterCriteria exists, process the filter
+      let filteredData;
+      if (campaign.filterField?.length || Object.keys(campaign.filterCriteria || {}).length) {
+        filteredData = this.processFilterCriteria(campaignData.data, campaign.filterField, campaign.filterCriteria);
+      } else {
+        // No filtering required, just assign the data as it is
+        filteredData = campaignData.data;
+      }
+  
+      // Assign the filtered/unfiltered data to the campaign
       campaign.filteredData = filteredData;
-      await this.campaignRepository.save(campaign);
+      campaign.processedData = campaignData;
   
       // Link the campaign to the campaign data
       campaignData.campaign = campaign;
+  
+      // Save both campaign and campaignData
+      await this.campaignRepository.save(campaign);
       await this.campaignDataRepository.save(campaignData);
   
-      return campaignData;
+      return true;
     } catch (error) {
       throw new HttpException(
         {
@@ -80,27 +106,67 @@ export class CampaignDataService {
       );
     }
   }
-  
-  
-  private processFilterCriteria(data: any[], filterFields: string[]): any {
-    // Create an empty object to store filtered data
-    const filteredData: Record<string, any[]> = {};
-  
-    // Initialize the filtered data structure based on the filter fields
-    filterFields.forEach(field => {
-      filteredData[field] = [];
-    });
-  
-    // Process each record in the data and filter based on the provided fields
-    data.forEach(record => {
-      filterFields.forEach(field => {
-        if (record[field]) {
-          filteredData[field].push(record[field]);
-        }
+
+
+   processFilterCriteria(data: any[], filterFields: string[], filterCriteria: Record<string, string[]>): any[] {
+    // Filter the data based on filterFields and filterCriteria
+    return data.filter(record => {
+      return filterFields.every(field => {
+        const criteria = filterCriteria[field];
+        // If no criteria for the field, include the record
+        if (!criteria || criteria.length === 0) return true;
+        // Check if the record field matches any of the criteria
+        return criteria.includes(record[field]);
       });
     });
+  }
+
+
+  async unLinkCampaign(campaignDataId: string): Promise<Boolean> {
+    try {
+      // Fetch the campaign data including its relations
+      const campaignData = await this.campaignDataRepository.findOne({
+        where: { id: campaignDataId },
+        relations: ['campaign'],
+      });
   
-    return filteredData;
+      if (!campaignData) {
+        throw new HttpException('Campaign data not found', HttpStatus.NOT_FOUND);
+      }
+  
+      // Check if there is an associated campaign
+      if (!campaignData.campaign) {
+        throw new HttpException('No associated campaign to unlink', HttpStatus.BAD_REQUEST);
+      }
+  
+      // Fetch the associated campaign entity
+      const campaign = await this.campaignRepository.findOne({
+        where: { id: campaignData.campaign.id },
+        relations: ['processedData'], // Fetch the relation with the processed data
+      });
+  
+      if (!campaign) {
+        throw new HttpException('Campaign not found', HttpStatus.NOT_FOUND);
+      }
+  
+      // Unlink the campaign from campaignData
+      campaignData.campaign = null;
+      await this.campaignDataRepository.save(campaignData);
+  
+      // Unlink the processed data from campaign
+      campaign.processedData = null;
+      await this.campaignRepository.save(campaign);
+  
+      return true; 
+    } catch (error) {
+      throw new HttpException(
+        {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: error.message || 'Failed to unlink campaign data',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   async paginateCampaignData(id: string, options: PaginateCampaignDataDto, goodZipCodes?: string[]) {
@@ -183,48 +249,48 @@ export class CampaignDataService {
   }
 
 
-  async updateCallResult(campaignDataId: string, recordId: string, agentId: string, callResult: CallResultEnum, rescheduledDate?: Date): Promise<void> {
-    try {
+  // async updateCallResult(campaignDataId: string, recordId: string, agentId: string, callResult: CallResultEnum, rescheduledDate?: Date): Promise<void> {
+  //   try {
       
-      const campaignData = await this.campaignDataRepository.findOne({
-        where: { id: campaignDataId },
-        relations: ['campaign'], // Include the 'campaign' relation
-      });
+  //     const campaignData = await this.campaignDataRepository.findOne({
+  //       where: { id: campaignDataId },
+  //       relations: ['campaign'], // Include the 'campaign' relation
+  //     });
   
-      if (!campaignData) {
-        throw new HttpException('Campaign data not found', HttpStatus.NOT_FOUND);
-      }
+  //     if (!campaignData) {
+  //       throw new HttpException('Campaign data not found', HttpStatus.NOT_FOUND);
+  //     }
   
-      const record = campaignData.data.find(item => item.id === recordId);
+  //     const record = campaignData.data.find(item => item.id === recordId);
   
-      if (!record) {
-        throw new HttpException('Record not found', HttpStatus.NOT_FOUND);
-      }
+  //     if (!record) {
+  //       throw new HttpException('Record not found', HttpStatus.NOT_FOUND);
+  //     }
   
-      record.agent = agentId;
-      record.call_result = callResult;
-      record.updated_at = new Date();
+  //     record.agent = agentId;
+  //     record.call_result = callResult;
+  //     record.updated_at = new Date();
   
-      if (callResult === CallResultEnum.RE_SCHEDULE && rescheduledDate) {
-        await this.rescheduledCallService.create({
-          campaign: campaignData.campaign.id,
-          preprocessedData: campaignDataId,
-          recordId: recordId,
-          scheduledDate: rescheduledDate,
-        });
-      }
+  //     if (callResult === CallResultEnum.RE_SCHEDULE && rescheduledDate) {
+  //       await this.rescheduledCallService.create({
+  //         campaign: campaignData.campaign.id,
+  //         preprocessedData: campaignDataId,
+  //         recordId: recordId,
+  //         scheduledDate: rescheduledDate,
+  //       });
+  //     }
   
-      await this.campaignDataRepository.save(campaignData);
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: error.message || 'Failed to update call result',
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
+  //     await this.campaignDataRepository.save(campaignData);
+  //   } catch (error) {
+  //     throw new HttpException(
+  //       {
+  //         status: HttpStatus.INTERNAL_SERVER_ERROR,
+  //         error: error.message || 'Failed to update call result',
+  //       },
+  //       HttpStatus.INTERNAL_SERVER_ERROR,
+  //     );
+  //   }
+  // }
 
   async downloadCampaignDataAsCsv(id: string): Promise<string> {
     try {

@@ -175,13 +175,13 @@ export class OriginalCampaignDataProcessor {
           // Verify duplicates across other campaigns using duplicateFieldCheck
           const { verifiedData, repeatedData } = await this.verifyDuplicatesAcrossCampaigns(uniqueData, campaignTypeId, duplicateFieldCheck, originalData.s3Url);
   
-          // Add extra fields to verifiedData
-          verifiedData.forEach((record, index) => {
-              record.id = `rec_${index}_${Date.now()}`;
-              record.agent = null;
-              record.call_result = null;
-              record.updated_at = null;
-          });
+        //   // Add extra fields to verifiedData
+        //   verifiedData.forEach((record, index) => {
+        //       record.id = `rec_${index}_${Date.now()}`;
+        //       record.agent = null;
+        //       record.call_result = null;
+        //       record.updated_at = null;
+        //   });
   
           // Convert the verified data back to CSV (or the required format) and upload to S3
           const newS3Url = await this.s3Service.uploadProcessedData(process.env.PROCESSED_DATA_DIR, baseName, verifiedData);

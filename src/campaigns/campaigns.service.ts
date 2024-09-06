@@ -41,44 +41,49 @@ export class CampaignsService {
 
   async createCampaign(
     createCampaignDto: CreateCampaignDto,
-    csvFile: Express.Multer.File,
-    
+    csvFile?: Express.Multer.File
   ): Promise<CampaignEntity> {
-    const { name, description, status, agents: agentIds, campaignTypeId, filterField } = createCampaignDto;
 
+    const { name, description, status, agents: agentIds, campaignTypeId, filterField, additionalFields } = createCampaignDto;
+  
     // Step 1: Find the Campaign Type
     const campaignType = await this.campaignTypeRepository.findOne({ where: { id: campaignTypeId } });
     if (!campaignType) {
       throw new HttpException('Campaign type not found', HttpStatus.NOT_FOUND);
     }
-
+  
     // Step 2: Find the agents by their IDs
     const agents = await this.userRepository.findBy({
-      id: In(agentIds) 
+      id: In(agentIds),
     });
-
+  
     if (agents.length !== agentIds.length) {
-      throw new HttpException(
-        'One or more agents not found',
-        HttpStatus.NOT_FOUND,
-      );
+      throw new HttpException('One or more agents not found', HttpStatus.NOT_FOUND);
     }
-
+  
     // Step 3: Parse the CSV file to generate the filter criteria
-    const filterCriteria = await this.generateFilterCriteriaFromCsv(csvFile);
-
-    // Step 4: Create a new Campaign entity
+    let filterCriteria = null;
+    if (csvFile) {
+      filterCriteria = await this.generateFilterCriteriaFromCsv(csvFile);
+    }
+  
+    // Step 4: Handle optional fields (set to null if empty or undefined)
+    const sanitizedFilterField = filterField && filterField.length ? filterField : null;
+    const sanitizedAdditionalFields = additionalFields && additionalFields.length ? additionalFields : null;
+  
+    // Step 5: Create a new Campaign entity
     const campaign = this.campaignRepository.create({
       name,
       description,
       status,
       agents,
-      filterField,
+      filterField: sanitizedFilterField,
       filterCriteria,
-      campaignType: campaignType,
+      additionalFields: sanitizedAdditionalFields,
+      campaignType,
     });
-
-    // Step 5: Save the Campaign entity
+  
+    // Step 6: Save the Campaign entity
     return this.campaignRepository.save(campaign);
   }
 
@@ -145,6 +150,7 @@ export class CampaignsService {
       campaignId: string,
       options: PaginationOptions<any>,
     ) {
+      try{
       // Fetch the campaign by ID
       const campaign = await this.campaignRepository.findOne({
         where: { id: campaignId },
@@ -155,11 +161,16 @@ export class CampaignsService {
       }
   
       const filteredData = campaign.filteredData || [];
+
   
       // Apply dynamic pagination, searching, filtering, and sorting using PaginationUtil
       return this.paginationUtil.paginateArray(filteredData, options);
+    }catch(error){
+      console.log(error)
+      throw error
     }
 
+    }
 
     async getSingleCampaign(campaignId: string): Promise<CampaignEntity> {
       try {
@@ -174,8 +185,9 @@ export class CampaignsService {
             'campaign.name',
             'campaign.description',
             'campaign.status',
-            // 'campaign.filterField',
+            'campaign.filterField',
             'campaign.filterCriteria',
+            'campaign.additionalFields',
             'campaignType.id',
             'campaignType.name',
             'agents.id',
@@ -205,7 +217,160 @@ export class CampaignsService {
         );
       }
     }
+
+    async getFilteredDataAsCsv(campaignId: string): Promise<string> {
+      try {
+        // Step 1: Fetch campaign and its filtered data
+        const campaign = await this.campaignRepository.findOne({
+          where: { id: campaignId },
+          select: ['id', 'name', 'filteredData'], // Only selecting relevant fields
+        });
   
+        if (!campaign) {
+          throw new HttpException('Campaign not found', HttpStatus.NOT_FOUND);
+        }
+  
+        if (!campaign.filteredData || campaign.filteredData.length === 0) {
+          throw new HttpException('No filtered data available', HttpStatus.NO_CONTENT);
+        }
+  
+        // Step 2: Convert filteredData to CSV
+        return this.convertFilteredDataToCsv(campaign.filteredData);
+      } catch (error) {
+        throw new HttpException(
+          {
+            status: error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+            error: error.message || 'Failed to generate CSV',
+          },
+          error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    }
+  
+    private convertFilteredDataToCsv(data: any[]): string {
+      if (data.length === 0) {
+        throw new HttpException('No data to convert to CSV', HttpStatus.BAD_REQUEST);
+      }
+  
+      const headers = Object.keys(data[0]); // Extract headers from the first object
+      const csvString = stringify(data, {
+        header: true,
+        columns: headers,
+      });
+  
+      return csvString;
+    }
+
+
+    async updateCampaign(
+      campaignId: string,
+      updateCampaignDto: UpdateCampaignDto,
+      csvFile?: Express.Multer.File,
+    ): Promise<CampaignEntity> {
+      const { name, description, status, agents: agentIds, filterField, additionalFields } = updateCampaignDto;
+    
+      // Step 1: Fetch the existing campaign
+      const campaign = await this.campaignRepository.findOne({
+        where: { id: campaignId },
+        relations: ['agents', 'campaignType'],
+      });
+    
+      if (!campaign) {
+        throw new HttpException('Campaign not found', HttpStatus.NOT_FOUND);
+      }
+    
+      // Step 2: Check if agents need to be updated
+      let agents = campaign.agents;
+      if (agentIds) {
+        agents = await this.userRepository.findBy({ id: In(agentIds) });
+    
+        if (agents.length !== agentIds.length) {
+          throw new HttpException('One or more agents not found', HttpStatus.NOT_FOUND);
+        }
+      }
+    
+      // Step 3: Update campaign fields
+      campaign.name = name ?? campaign.name;
+      campaign.description = description ?? campaign.description;
+      campaign.status = status ?? campaign.status;
+      campaign.agents = agents;
+    
+      let filterCriteria = campaign.filterCriteria;
+      let isFilterChanged = false;
+    
+      // Step 4: Update filter fields and re-process data if needed
+      if (filterField && JSON.stringify(filterField) !== JSON.stringify(campaign.filterField)) {
+        isFilterChanged = true;
+        campaign.filterField = filterField;
+      }
+    
+      // Step 5: If CSV file is provided, update filter criteria and reprocess data
+      if (csvFile) {
+        filterCriteria = await this.generateFilterCriteriaFromCsv(csvFile);
+        campaign.filterCriteria = filterCriteria;
+        isFilterChanged = true;
+      }
+    
+      // Step 6: Re-process the filtered data if filter fields or criteria have changed
+      if (isFilterChanged) {
+        const processedData = await this.campaignDataRepository.findOne({
+          where: { campaign: { id: campaign.id } },
+        });
+    
+        if (processedData && processedData.data) {
+          const newFilteredData = this.campaignDataService.processFilterCriteria(processedData.data, campaign.filterField, filterCriteria);
+          campaign.filteredData = newFilteredData;
+        }
+      }
+    
+      // Step 7: Update additional fields if provided
+      if (additionalFields) {
+        campaign.additionalFields = additionalFields;
+      }
+    
+      // Step 8: Save the updated campaign
+      return this.campaignRepository.save(campaign);
+    }
+    
+
+
+    async deleteCampaign(campaignId: CampaignEntity['id']): Promise<void> {
+      try {
+        // Step 1: Find the campaign
+        const campaign = await this.campaignRepository.findOne({
+          where: { id: campaignId },
+          relations: ['processedData'], // Get processed data relation
+        });
+    
+        if (!campaign) {
+          throw new HttpException('Campaign not found', HttpStatus.NOT_FOUND);
+        }
+    
+        // Step 2: Check if there is processed data linked
+        if (campaign.processedData) {
+          // Step 3: Unlink the processed data using the unlink method in CampaignDataService
+          await this.campaignDataService.unLinkCampaign(campaign.processedData.id);
+        }
+    
+        // Step 4: Soft delete the campaign
+        await this.campaignRepository.softDelete(campaignId);
+      } catch (error) {
+        // Return proper HTTP status code and error message
+        if (error instanceof HttpException) {
+          // If it's an HttpException, rethrow it with the original status and message
+          throw error;
+        }
+    
+        // For other errors, return a generic 500 Internal Server Error
+        throw new HttpException(
+          {
+            status: HttpStatus.INTERNAL_SERVER_ERROR,
+            error: error.message || 'Failed to delete campaign',
+          },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    }
 
 }
 

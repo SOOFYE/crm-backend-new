@@ -22,7 +22,7 @@ export class OriginalCampaignData {
     @ManyToOne(() => CampaignType, campaignType => campaignType.originalData)
     campaignType: CampaignType; // Link to the campaign type
 
-    @OneToOne(() => CampaignData, data => data.originalData, { nullable: true })
+    @OneToOne(() => CampaignData, data => data.originalData, { nullable: true, cascade:true  })
     @JoinColumn()  // This decorator tells TypeORM which column to use for the foreign key
     preprocessedData: CampaignData; // Relation to the preprocessed data, will be linked once processing is complete
 
