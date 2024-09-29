@@ -4,10 +4,8 @@ import { FindOptionsWhere, Repository } from 'typeorm';
 import { UserEntity } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { PaginationOptions } from 'src/common/interfaces/pagination-options.interface';
 import { PaginationResult } from 'src/common/interfaces/pagination-result.interface';
 import { PaginationUtil } from 'src/utils/pagination.util';
-import { UserRole } from 'src/common/enums/roles.enum';
 import { FindAllUsersDto } from './dto/find-all-users.dto';
 
 @Injectable()
@@ -28,7 +26,7 @@ export class UsersService {
           },
           HttpStatus.BAD_REQUEST,
         ); 
-      const user = this.usersRepository.create({...createUserDto,role:UserRole.AGENT});
+      const user = this.usersRepository.create({...createUserDto});
       return await this.usersRepository.save(user);
     } catch (error) {
       throw error
@@ -86,6 +84,7 @@ export class UsersService {
           );
         }
       }
+
   
       // Preload the user entity with the updated data
       const user = await this.usersRepository.preload({
@@ -119,6 +118,7 @@ export class UsersService {
       const user = await this.findOne({ id: id });
       await this.usersRepository.softRemove(user);
     } catch (error) {
+      console.log(error)
       if (error instanceof NotFoundException) {
         throw error;
       }

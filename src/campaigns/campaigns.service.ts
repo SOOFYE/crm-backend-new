@@ -20,6 +20,7 @@ import * as csvParser from 'csv-parser';
 import * as streamifier from 'streamifier';
 import { stringify } from 'csv-stringify/sync'; 
 import { S3Service } from "../s3/s3.service";
+import { AgentEntity } from "../agents/entities/agent.entity";
 
 
 @Injectable()
@@ -262,75 +263,75 @@ export class CampaignsService {
     }
 
 
-    async updateCampaign(
-      campaignId: string,
-      updateCampaignDto: UpdateCampaignDto,
-      csvFile?: Express.Multer.File,
-    ): Promise<CampaignEntity> {
-      const { name, description, status, agents: agentIds, filterField, additionalFields } = updateCampaignDto;
+    // async updateCampaign(
+    //   campaignId: string,
+    //   updateCampaignDto: UpdateCampaignDto,
+    //   csvFile?: Express.Multer.File,
+    // ): Promise<CampaignEntity> {
+    //   const { name, description, status, agents: agentIds, filterField, additionalFields } = updateCampaignDto;
     
-      // Step 1: Fetch the existing campaign
-      const campaign = await this.campaignRepository.findOne({
-        where: { id: campaignId },
-        relations: ['agents', 'campaignType'],
-      });
+    //   // Step 1: Fetch the existing campaign
+    //   const campaign = await this.campaignRepository.findOne({
+    //     where: { id: campaignId },
+    //     relations: ['agents', 'campaignType'],
+    //   });
     
-      if (!campaign) {
-        throw new HttpException('Campaign not found', HttpStatus.NOT_FOUND);
-      }
+    //   if (!campaign) {
+    //     throw new HttpException('Campaign not found', HttpStatus.NOT_FOUND);
+    //   }
     
-      // Step 2: Check if agents need to be updated
-      let agents = campaign.agents;
-      if (agentIds) {
-        agents = await this.userRepository.findBy({ id: In(agentIds) });
+    //   // Step 2: Check if agents need to be updated
+    //   let agents = campaign.agents;
+    //   if (agentIds) {
+    //     agents  = await this.userRepository.findBy({ id: In(agentIds) });
     
-        if (agents.length !== agentIds.length) {
-          throw new HttpException('One or more agents not found', HttpStatus.NOT_FOUND);
-        }
-      }
+    //     if (agents.length !== agentIds.length) {
+    //       throw new HttpException('One or more agents not found', HttpStatus.NOT_FOUND);
+    //     }
+    //   }
     
-      // Step 3: Update campaign fields
-      campaign.name = name ?? campaign.name;
-      campaign.description = description ?? campaign.description;
-      campaign.status = status ?? campaign.status;
-      campaign.agents = agents;
+    //   // Step 3: Update campaign fields
+    //   campaign.name = name ?? campaign.name;
+    //   campaign.description = description ?? campaign.description;
+    //   campaign.status = status ?? campaign.status;
+    //   campaign.agents = agents;
     
-      let filterCriteria = campaign.filterCriteria;
-      let isFilterChanged = false;
+    //   let filterCriteria = campaign.filterCriteria;
+    //   let isFilterChanged = false;
     
-      // Step 4: Update filter fields and re-process data if needed
-      if (filterField && JSON.stringify(filterField) !== JSON.stringify(campaign.filterField)) {
-        isFilterChanged = true;
-        campaign.filterField = filterField;
-      }
+    //   // Step 4: Update filter fields and re-process data if needed
+    //   if (filterField && JSON.stringify(filterField) !== JSON.stringify(campaign.filterField)) {
+    //     isFilterChanged = true;
+    //     campaign.filterField = filterField;
+    //   }
     
-      // Step 5: If CSV file is provided, update filter criteria and reprocess data
-      if (csvFile) {
-        filterCriteria = await this.generateFilterCriteriaFromCsv(csvFile);
-        campaign.filterCriteria = filterCriteria;
-        isFilterChanged = true;
-      }
+    //   // Step 5: If CSV file is provided, update filter criteria and reprocess data
+    //   if (csvFile) {
+    //     filterCriteria = await this.generateFilterCriteriaFromCsv(csvFile);
+    //     campaign.filterCriteria = filterCriteria;
+    //     isFilterChanged = true;
+    //   }
     
-      // Step 6: Re-process the filtered data if filter fields or criteria have changed
-      if (isFilterChanged) {
-        const processedData = await this.campaignDataRepository.findOne({
-          where: { campaign: { id: campaign.id } },
-        });
+    //   // Step 6: Re-process the filtered data if filter fields or criteria have changed
+    //   if (isFilterChanged) {
+    //     const processedData = await this.campaignDataRepository.findOne({
+    //       where: { campaign: { id: campaign.id } },
+    //     });
     
-        if (processedData && processedData.data) {
-          const newFilteredData = this.campaignDataService.processFilterCriteria(processedData.data, campaign.filterField, filterCriteria);
-          campaign.filteredData = newFilteredData;
-        }
-      }
+    //     if (processedData && processedData.data) {
+    //       const newFilteredData = this.campaignDataService.processFilterCriteria(processedData.data, campaign.filterField, filterCriteria);
+    //       campaign.filteredData = newFilteredData;
+    //     }
+    //   }
     
-      // Step 7: Update additional fields if provided
-      if (additionalFields) {
-        campaign.additionalFields = additionalFields;
-      }
+    //   // Step 7: Update additional fields if provided
+    //   if (additionalFields) {
+    //     campaign.additionalFields = additionalFields;
+    //   }
     
-      // Step 8: Save the updated campaign
-      return this.campaignRepository.save(campaign);
-    }
+    //   // Step 8: Save the updated campaign
+    //   return this.campaignRepository.save(campaign);
+    // }
     
 
 

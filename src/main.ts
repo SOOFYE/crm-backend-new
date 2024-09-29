@@ -12,6 +12,7 @@ async function bootstrap() {
   
   app.useGlobalPipes(new ValidationPipe());
 
+
   const config = new DocumentBuilder()
     .setTitle('CRM-BACKEND')
     .setDescription('APIS FOR MANAGING CRM BACKEND')

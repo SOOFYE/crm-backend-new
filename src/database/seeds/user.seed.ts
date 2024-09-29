@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { UserRole } from 'src/common/enums/roles.enum';
 import { UserEntity } from 'src/users/entities/user.entity';
 import { UsersService } from 'src/users/users.service';
+import { CreateUserDto } from '../../users/dto/create-user.dto';
 
 @Injectable()
 export class UserSeeder {
@@ -30,7 +31,7 @@ export class UserSeeder {
     ];
 
     for (const user of users) {
-        await this.usersService.create(user as UserEntity);
+        await this.usersService.create(user as CreateUserDto);
       }
     }
   }

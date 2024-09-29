@@ -22,7 +22,7 @@ export class OriginalCampaignDataService {
     @InjectRepository(CampaignEntity)
     private readonly campaignsRepository: Repository<CampaignEntity>,
     private readonly s3Service: S3Service,
-    private readonly jobService: JobService, // Replace this with your actual job service implementation
+    private readonly jobService: JobService, 
     private readonly campaignTypeService: CampaignTypesService,
     private readonly paginationUtil: PaginationUtil
   ) {}

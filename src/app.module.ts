@@ -16,9 +16,15 @@ import { S3Module } from './s3/s3.module';
 import { JobsModule } from './job-service/job-service.module';
 
 import { RescheduledCallsModule } from './rescheduled-calls/rescheduled-calls.module';
+import { CallLogsModule } from './call-logs/call-logs.module';
+import { RedisModule } from './redis.module';
+import { AgentsModule } from './agents/agents.module';
+import { TwilioModule } from './twilio/twilio.module';
+import { EventsGateway } from './gateway.socket';
 
 @Module({
   imports: [
+    RedisModule,
     DatabaseModule, 
     UsersModule,  
     ConfigModule.forRoot(),
@@ -37,9 +43,14 @@ import { RescheduledCallsModule } from './rescheduled-calls/rescheduled-calls.mo
     CampaignDataModule,
     S3Module,
     JobsModule,
-    RescheduledCallsModule], // Import the AuthModule if it's not in AppModule],
+    RescheduledCallsModule,
+    CallLogsModule,
+    AgentsModule,
+    TwilioModule,
+  
+  ], 
   controllers: [AppController],
-  providers: [AppService,IsUniqueConstraint],
+  providers: [AppService,IsUniqueConstraint,EventsGateway],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

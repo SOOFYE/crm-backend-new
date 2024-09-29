@@ -7,7 +7,6 @@ import { CampaignData } from './entities/campaign-datum.entity';
 
 
 import { createObjectCsvStringifier } from 'csv-writer';
-import { CallResultEnum } from '../common/enums/call-result.enum';
 import { RescheduledCallsService } from '../rescheduled-calls/rescheduled-calls.service';
 import { CampaignDataEnum } from '../common/enums/campaign-dataum.enum';
 import { CampaignEntity } from '../campaigns/entities/campaign.entity';

@@ -76,27 +76,27 @@ export class CampaignsController {
   }
 
 
-  @Patch(':campaignId')
-  @ApiParam({ name: 'campaignId', description: 'UUID of the campaign to be updated' })
-  @UseInterceptors(FileInterceptor('fileCriteria')) // To handle CSV file upload
-  async updateCampaign(
-    @Param('campaignId') campaignId: string,
-    @Body() updateCampaignDto: UpdateCampaignDto,
-    @UploadedFile() fileCriteria?: Express.Multer.File,
-  ): Promise<CampaignEntity> {
-    try {
-      // Call the service function to handle the update
-      return await this.campaignsService.updateCampaign(campaignId, updateCampaignDto, fileCriteria);
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-          error: error.message || 'Failed to update campaign',
-        },
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
+  // @Patch(':campaignId')
+  // @ApiParam({ name: 'campaignId', description: 'UUID of the campaign to be updated' })
+  // @UseInterceptors(FileInterceptor('fileCriteria')) // To handle CSV file upload
+  // async updateCampaign(
+  //   @Param('campaignId') campaignId: string,
+  //   @Body() updateCampaignDto: UpdateCampaignDto,
+  //   @UploadedFile() fileCriteria?: Express.Multer.File,
+  // ): Promise<CampaignEntity> {
+  //   try {
+  //     // Call the service function to handle the update
+  //     return await this.campaignsService.updateCampaign(campaignId, updateCampaignDto, fileCriteria);
+  //   } catch (error) {
+  //     throw new HttpException(
+  //       {
+  //         status: error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+  //         error: error.message || 'Failed to update campaign',
+  //       },
+  //       error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+  //     );
+  //   }
+  // }
 
 
   @Delete(':id')

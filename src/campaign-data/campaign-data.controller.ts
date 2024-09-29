@@ -2,9 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestj
 import { CampaignDataService } from './campaign-data.service';
 import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { PaginateCampaignDataDto } from './dto/PaginateCampaignData.dto';
-import { CallResultEnum } from '../common/enums/call-result.enum';
-import { UpdateCallResultDto } from './dto/updatecallresult.dto';
-import { CampaignData } from './entities/campaign-datum.entity';
+
 
 @ApiTags('Campaign Data')
 @Controller('campaign-data')
