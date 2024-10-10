@@ -14,8 +14,8 @@ import { OrignalCampaignDataModule } from './orignal-campaign-data/orignal-campa
 import { CampaignDataModule } from './campaign-data/campaign-data.module';
 import { S3Module } from './s3/s3.module';
 import { JobsModule } from './job-service/job-service.module';
-
-import { RescheduledCallsModule } from './rescheduled-calls/rescheduled-calls.module';
+import { FormsModule } from './forms/forms.module';
+import { LeadsModule } from './leads/leads.module';
 
 @Module({
   imports: [
@@ -37,7 +37,8 @@ import { RescheduledCallsModule } from './rescheduled-calls/rescheduled-calls.mo
     CampaignDataModule,
     S3Module,
     JobsModule,
-    RescheduledCallsModule], // Import the AuthModule if it's not in AppModule],
+    FormsModule,
+    LeadsModule], 
   controllers: [AppController],
   providers: [AppService,IsUniqueConstraint],
 })

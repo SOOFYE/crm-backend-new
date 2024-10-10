@@ -1,7 +1,7 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
-import { CampaignType } from './entities/campaign-type.entity';
+import { CampaignTypeEntity } from './entities/campaign-type.entity';
 import { CreateCampaignTypeDto } from './dto/create-campaign-type.dto';
 import { UpdateCampaignTypeDto } from './dto/update-campaign-type.dto';
 import { PaginationUtil } from '../utils/pagination.util';
@@ -11,12 +11,12 @@ import { PaginationResult } from '../common/interfaces/pagination-result.interfa
 @Injectable()
 export class CampaignTypesService {
   constructor(
-    @InjectRepository(CampaignType)
-    private readonly campaignTypeRepository: Repository<CampaignType>,
+    @InjectRepository(CampaignTypeEntity)
+    private readonly campaignTypeRepository: Repository<CampaignTypeEntity>,
     private readonly paginationUtil: PaginationUtil,
   ) {}
 
-  async create(createCampaignTypeDto: CreateCampaignTypeDto): Promise<CampaignType> {
+  async create(createCampaignTypeDto: CreateCampaignTypeDto): Promise<CampaignTypeEntity> {
     try {
       const campaignType = this.campaignTypeRepository.create(createCampaignTypeDto);
       return await this.campaignTypeRepository.save(campaignType);
@@ -31,7 +31,7 @@ export class CampaignTypesService {
     }
   }
 
-  async findAll(options: PaginationOptions<CampaignType>): Promise<PaginationResult<CampaignType>> {
+  async findAll(options: PaginationOptions<CampaignTypeEntity>): Promise<PaginationResult<CampaignTypeEntity>> {
     try {
       
       return await this.paginationUtil.paginate(this.campaignTypeRepository, options);
@@ -47,7 +47,7 @@ export class CampaignTypesService {
     }
   }
 
-  async findOne(criteria: FindOptionsWhere<CampaignType>): Promise<CampaignType> {
+  async findOne(criteria: FindOptionsWhere<CampaignTypeEntity>): Promise<CampaignTypeEntity> {
     try {
       const campaignType = await this.campaignTypeRepository.findOne({ where: criteria });
       if (!campaignType) {
@@ -71,7 +71,7 @@ export class CampaignTypesService {
     }
   }
 
-  async update(id: string, updateCampaignTypeDto: UpdateCampaignTypeDto): Promise<CampaignType> {
+  async update(id: string, updateCampaignTypeDto: UpdateCampaignTypeDto): Promise<CampaignTypeEntity> {
     try {
       const campaignType = await this.campaignTypeRepository.preload({
         id,

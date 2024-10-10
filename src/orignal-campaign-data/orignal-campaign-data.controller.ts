@@ -1,5 +1,5 @@
-import { Controller, Post, Patch, Body, Param, UseGuards, UploadedFile, UseInterceptors, Get, Query, Delete, HttpCode, HttpStatus } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Controller, Post, Patch, Body, Param, UseGuards, UploadedFile, UseInterceptors, Get, Query, Delete, HttpCode, HttpStatus, UploadedFiles } from '@nestjs/common';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody, ApiParam } from '@nestjs/swagger';
 import { OriginalCampaignDataService } from './orignal-campaign-data.service';
 import { FileUploadDto } from './dto/FileUpload-OGData.dto';
@@ -19,16 +19,28 @@ export class OriginalCampaignDataController {
   constructor(private readonly originalCampaignDataService: OriginalCampaignDataService) {}
 
   @Post('upload')
-  //@Roles(UserRole.ADMIN)
+  // @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Upload Original Campaign Data' })
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileFieldsInterceptor([
+    { name: 'originalData', maxCount: 1 },
+    { name: 'filteringCriteria', maxCount: 1 }
+  ]))
   @ApiBody({ description: 'Upload original campaign data', type: FileUploadDto })
   async uploadOriginalData(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFiles() files: { originalData?: Express.Multer.File[], filteringCriteria?: Express.Multer.File[] },
     @Body() body: FileUploadDto
   ) {
-    return this.originalCampaignDataService.uploadOriginalData(file, body.campaignTypeId, body.duplicateFieldCheck);
+    const originalData = files.originalData?.[0]; // Access the original data file
+    const filteringCriteria = files.filteringCriteria?.[0]; // Access the filtering criteria file
+  
+    return this.originalCampaignDataService.uploadOriginalData(
+      originalData, 
+      filteringCriteria, 
+      body.campaignTypeId, 
+      body.duplicateFieldCheck,
+      body.filteringIncludeOrExclude  // Make sure this is passed in the body
+    );
   }
 
   @Get()

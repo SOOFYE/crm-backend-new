@@ -9,7 +9,7 @@ import { CampaignTypesService } from "./campaign-types.service";
 import { CreateCampaignTypeDto } from "./dto/create-campaign-type.dto";
 import { FindAllCampaignTypesDto } from "./dto/find-all-campaignTypes.dto";
 import { UpdateCampaignTypeDto } from "./dto/update-campaign-type.dto";
-import { CampaignType } from "./entities/campaign-type.entity";
+import { CampaignTypeEntity } from "./entities/campaign-type.entity";
 
 
 @ApiTags('campaign-types')
@@ -34,7 +34,7 @@ export class CampaignTypesController {
   @ApiOperation({ summary: 'Get all campaign types with pagination' })
   @ApiResponse({ status: 200, description: 'Return all campaign types.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  async findAll(@Query() findAllDto: FindAllCampaignTypesDto): Promise<PaginationResult<CampaignType>> {
+  async findAll(@Query() findAllDto: FindAllCampaignTypesDto): Promise<PaginationResult<CampaignTypeEntity>> {
     
     return this.campaignTypesService.findAll(findAllDto);
   }

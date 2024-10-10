@@ -17,109 +17,54 @@ import { Response } from 'express';
 import { CampaignEntity } from './entities/campaign.entity';
 
 @ApiTags('Campaigns')
-//@ApiBearerAuth()
-//@UseGuards(JwtAuthGuard, RolesGuard)
+
 @Controller('campaigns')
 export class CampaignsController {
   constructor(private readonly campaignsService: CampaignsService) {}
 
-  @Post('create')
-  @UseInterceptors(FileInterceptor('fileCriteria'))
+  @Post()
   async createCampaign(
     @Body() createCampaignDto: CreateCampaignDto,
-    @UploadedFile() filterCriteria: Express.Multer.File,
   ) {
-    return await this.campaignsService.createCampaign(createCampaignDto, filterCriteria);
+    return await this.campaignsService.createCampaign(createCampaignDto);
+  }
+
+  @Get('active')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getActiveCampaignsForAgent(@Req() req: AuthenticatedRequest) {
+    console.log(req.user.id)
+    const agentId = req.user.id; // Assuming the user ID is available in the request object
+    return this.campaignsService.getActiveCampaignsForAgent(agentId);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all campaigns with pagination' })
-
   async getAllCampaigns(@Query() query: GetAllCampaignsDto) {
       return await this.campaignsService.getAllCampaigns(query);
   }
 
-
-  @Get('campaign-ids')
-  async getAllCampaignIdsAndNames(){
-    return await this.campaignsService.getAllCampaignIdsAndNames()
+  @Get('names-ids')
+  @ApiOperation({ summary: 'Get all campaigns ' })
+  async getAllCampaignsNamesAndIds() {
+      return await this.campaignsService.getAllCampaignIdsAndNames();
   }
 
-  @Get(':id')
+    @Get(':id')
   async getSingleCampaignData(
     @Param('id') campaignId: string,
   ) {
-    return this.campaignsService.getSingleCampaign(campaignId);
+    return this.campaignsService.getCampaignById(campaignId);
   }
 
-
-
-  @Get(':id/filtered-data')
-  async getFilteredData(
-    @Param('id') campaignId: string,
-    @Query() query: PaginateFilteredDataDto,
-  ) {
-    return this.campaignsService.getFilteredData(campaignId, query);
-  }
-
-
-  @Get(':id/filtered-data/export-csv')
-  async exportFilteredDataAsCsv(@Param('id') campaignId: string, @Res() res: Response) {
-    const csvData = await this.campaignsService.getFilteredDataAsCsv(campaignId);
-
-    // Set response headers to download the CSV file
-    res.header('Content-Type', 'text/csv');
-    res.header('Content-Disposition', `attachment; filename="filtered-data-${campaignId}.csv"`);
-    
-    // Send the CSV data
-    res.send(csvData);
-  }
-
-
-  @Patch(':campaignId')
-  @ApiParam({ name: 'campaignId', description: 'UUID of the campaign to be updated' })
-  @UseInterceptors(FileInterceptor('fileCriteria')) // To handle CSV file upload
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update a campaign by ID' })
   async updateCampaign(
-    @Param('campaignId') campaignId: string,
+    @Param('id') id: string,
     @Body() updateCampaignDto: UpdateCampaignDto,
-    @UploadedFile() fileCriteria?: Express.Multer.File,
-  ): Promise<CampaignEntity> {
-    try {
-      // Call the service function to handle the update
-      return await this.campaignsService.updateCampaign(campaignId, updateCampaignDto, fileCriteria);
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-          error: error.message || 'Failed to update campaign',
-        },
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+  ) {
+    return this.campaignsService.updateCampaign(id, updateCampaignDto);
   }
 
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a campaign by ID' })
-  async deleteCampaign(@Param('id') id: string): Promise<void> {
-    try {
-      // Call service to delete the campaign
-      await this.campaignsService.deleteCampaign(id);
-    } catch (error) {
-      // Handle any HttpExceptions thrown from the service
-      if (error instanceof HttpException) {
-        throw error;
-      }
-
-      // If any other error occurs, return a generic 500 Internal Server Error
-      throw new HttpException(
-        {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: error.message || 'Failed to delete campaign',
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
 }
 

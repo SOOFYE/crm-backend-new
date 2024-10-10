@@ -18,7 +18,7 @@ export class S3Service {
   async uploadFile(folder:string,file: Express.Multer.File): Promise<{s3Url:string,baseName:string,ext:string}> {
         let baseName = file.originalname;
         const ext =  path.extname(file.originalname)
-        baseName = baseName.replace(/\s+/g, '_');
+        baseName = baseName.replace(/[^\w\-]/g, '_')
         const subKey = `${baseName}`
     try {
       const params = {

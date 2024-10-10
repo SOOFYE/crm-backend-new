@@ -1,8 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, JoinTable, OneToOne, JoinColumn, ManyToOne, CreateDateColumn, DeleteDateColumn, UpdateDateColumn } from "typeorm";
-import { CampaignData } from "../../campaign-data/entities/campaign-datum.entity";
-import { CampaignType } from "../../campaign-types/entities/campaign-type.entity";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, JoinTable, OneToOne, JoinColumn, ManyToOne, CreateDateColumn, DeleteDateColumn, UpdateDateColumn, OneToMany } from "typeorm";
+import { CampaignDataEntity } from "../../campaign-data/entities/campaign-datum.entity";
+import { CampaignTypeEntity } from "../../campaign-types/entities/campaign-type.entity";
 import { CampaignStatusEnum } from "../../common/enums/campaign-stats.enum";
 import { UserEntity } from "../../users/entities/user.entity";
+import { FormEntity } from "../../forms/entities/form.entity";
+import { LeadEntity } from "../../leads/entities/lead.entity";
 
 @Entity('campaigns')
 export class CampaignEntity {
@@ -22,32 +24,25 @@ export class CampaignEntity {
   @JoinTable()
   agents: UserEntity[];
 
-  @OneToOne(() => CampaignData, data => data.campaign, { nullable: true })
-  @JoinColumn()
-  processedData: CampaignData;
+  @OneToMany(() => CampaignDataEntity, data => data.campaign, { nullable: true, cascade: true })
+  processedData: CampaignDataEntity[];
 
-  @ManyToOne(() => CampaignType, campaignType => campaignType.campaigns)
-  campaignType: CampaignType;
+  @ManyToOne(() => CampaignTypeEntity, campaignType => campaignType.campaigns)
+  campaignType: CampaignTypeEntity;
 
-  @Column('simple-array', { nullable: true })
-  filterField: string[];  // Columns from CSV used for filtering (e.g., ['zipcodes', 'states'])
+  @ManyToOne(() => FormEntity, form => form.campaigns, { nullable: true, cascade: true })
+  form: FormEntity; // A campaign can have only one form
 
-  @Column('jsonb', {nullable: true})
-  filterCriteria?: Record<string, string[]>;  // Filter criteria stored as key-value pairs, where the key is the column name, and the value is an array of criteria
-
-  @Column('jsonb', { nullable: true })
-  filteredData: any[];  // Filtered data based on the criteria
-
-  @Column('jsonb', { nullable: true })
-  additionalFields: { name: string; type: string }[];  // Array of objects representing additional fields (name and type)
+  @OneToMany (()=>LeadEntity, (lead)=> lead.campaign)
+  leads: LeadEntity
 
   @CreateDateColumn()
-  createdAt: Date; // Timestamp for when the record was created
-  
+  createdAt: Date; 
+
   @UpdateDateColumn()
-  updatedAt: Date; // Timestamp for when the record was last updated
+  updatedAt: Date; 
   
   @DeleteDateColumn()
-  deletedAt: Date; // Timestamp for soft delete
+  deletedAt: Date; 
 
 }

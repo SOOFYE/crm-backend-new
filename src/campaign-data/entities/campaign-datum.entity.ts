@@ -1,39 +1,40 @@
 
 
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, OneToMany, OneToOne, ManyToOne, JoinColumn } from 'typeorm';
-import { CampaignType } from '../../campaign-types/entities/campaign-type.entity';
+import { CampaignTypeEntity } from '../../campaign-types/entities/campaign-type.entity';
 import { CampaignEntity } from '../../campaigns/entities/campaign.entity';
 import { CampaignDataEnum } from '../../common/enums/campaign-dataum.enum';
 import { OriginalCampaignData } from '../../orignal-campaign-data/entities/orignal-campaign-datum.entity';
+import { Exclude } from 'class-transformer';
 
 
 @Entity('campaign_data')
-export class CampaignData {
+export class CampaignDataEntity {
     @PrimaryGeneratedColumn('uuid')
     id: string;
   
     @Column()
-    name: string; // Name or identifier for the preprocessed data
+    name: string; 
   
     @Column({ type: 'varchar', length: 255, nullable: true })
-    s3Url?: string; // S3 URL to access the processed data file
+    s3Url?: string; 
   
     @Column({ type: 'enum', enum: CampaignDataEnum, default: CampaignDataEnum.PENDING })
-    status: CampaignDataEnum; // Status of the processing: pending, success, failed
+    status: CampaignDataEnum; 
 
-    @ManyToOne(() => CampaignType, campaignType => campaignType.preprocessedData)
-    campaignType: CampaignType; // Link to the campaign type
+    @ManyToOne(() => CampaignTypeEntity, campaignType => campaignType.preprocessedData)
+    campaignType: CampaignTypeEntity; 
 
-    @OneToOne(() => CampaignEntity, campaign => campaign.processedData, { nullable: true, cascade:true})
-    @JoinColumn()
-    campaign: CampaignEntity; // Relation to the campaign that was processed
+    @ManyToOne(() => CampaignEntity, campaign => campaign.processedData, { nullable: true })
+    campaign: CampaignEntity;
 
     @Column({ type: 'jsonb', nullable: true })
-    data: any; // Store preprocessed data as a JSON object
+    @Exclude()
+    data: any; 
 
     @OneToOne(() => OriginalCampaignData, originalData => originalData.preprocessedData)
     @JoinColumn()
-    originalData: OriginalCampaignData; // Relation to original campaign data that was processed
+    originalData: OriginalCampaignData; 
 
     @Column({ type: 'varchar', length: 255, nullable: true })
     duplicateStatsS3Url: string
@@ -42,13 +43,13 @@ export class CampaignData {
     replicatedStatsS3Url: string
   
     @CreateDateColumn()
-    createdAt: Date; // Timestamp for when the record was created
+    createdAt: Date; 
   
     @UpdateDateColumn()
-    updatedAt: Date; // Timestamp for when the record was last updated
+    updatedAt: Date; 
   
     @DeleteDateColumn()
-    deletedAt: Date; // Timestamp for soft delete
+    deletedAt: Date; 
   
 
 }

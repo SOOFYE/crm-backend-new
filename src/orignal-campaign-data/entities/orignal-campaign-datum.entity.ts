@@ -1,7 +1,9 @@
 
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, DeleteDateColumn, UpdateDateColumn, OneToOne, JoinColumn } from 'typeorm';
-import { CampaignData } from '../../campaign-data/entities/campaign-datum.entity';
-import { CampaignType } from '../../campaign-types/entities/campaign-type.entity';
+import { CampaignDataEntity } from '../../campaign-data/entities/campaign-datum.entity';
+import { CampaignTypeEntity } from '../../campaign-types/entities/campaign-type.entity';
+
+import { FilteringModeEnum } from '../../common/enums/filtering-mode.enum';
 
 
 
@@ -11,29 +13,35 @@ export class OriginalCampaignData {
     id: string;
   
     @Column()
-    name: string; // The original file name
+    name: string; 
   
     @Column({ type: 'varchar', length: 255 })
-    s3Url: string; // S3 URL to access the original file
+    s3Url: string; 
 
     @Column('simple-array')
-    duplicateFieldCheck: string[]; // Fields to check for duplicates within the file
+    duplicateFieldCheck: string[];
+    
+    @Column('jsonb', {nullable: true})
+    filterCriteria?: Record<string, string[]>; 
+    
+    @Column({ type: 'enum', enum: FilteringModeEnum, default: FilteringModeEnum.INCLUDE })
+    FilteringMode: FilteringModeEnum;
   
-    @ManyToOne(() => CampaignType, campaignType => campaignType.originalData)
-    campaignType: CampaignType; // Link to the campaign type
+    @ManyToOne(() => CampaignTypeEntity, campaignType => campaignType.originalData)
+    campaignType: CampaignTypeEntity; 
 
-    @OneToOne(() => CampaignData, data => data.originalData, { nullable: true, cascade:true  })
-    @JoinColumn()  // This decorator tells TypeORM which column to use for the foreign key
-    preprocessedData: CampaignData; // Relation to the preprocessed data, will be linked once processing is complete
+    @OneToOne(() => CampaignDataEntity, data => data.originalData, { nullable: true, cascade:true  })
+    @JoinColumn()  
+    preprocessedData: CampaignDataEntity; 
 
     @CreateDateColumn()
-    createdAt: Date; // Timestamp for when the record was created
+    createdAt: Date; 
   
     @UpdateDateColumn()
-    updatedAt: Date; // Timestamp for when the record was last updated
+    updatedAt: Date; 
   
     @DeleteDateColumn()
-    deletedAt: Date; // Timestamp for soft delete
+    deletedAt: Date; 
   
 
 }

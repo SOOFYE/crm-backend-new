@@ -2,13 +2,12 @@ import { Module } from '@nestjs/common';
 import { CampaignDataService } from './campaign-data.service';
 import { CampaignDataController } from './campaign-data.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CampaignData } from './entities/campaign-datum.entity';
 import { S3Module } from '../s3/s3.module';
-import { RescheduledCallsModule } from '../rescheduled-calls/rescheduled-calls.module';
 import { CampaignEntity } from '../campaigns/entities/campaign.entity';
+import { CampaignDataEntity } from './entities/campaign-datum.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CampaignData,CampaignEntity]),RescheduledCallsModule],
+  imports: [TypeOrmModule.forFeature([CampaignDataEntity,CampaignEntity])],
   controllers: [CampaignDataController],
   providers: [CampaignDataService],
   exports: [CampaignDataService ]

@@ -1,10 +1,10 @@
 import { IsOptional, IsNumber, IsString, IsEnum, IsArray } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { CampaignType } from '../entities/campaign-type.entity';
+import { CampaignTypeEntity } from '../entities/campaign-type.entity';
 import { PaginationOptions } from '../../common/interfaces/pagination-options.interface';
 import { Type } from 'class-transformer';
 
-export class FindAllCampaignTypesDto implements PaginationOptions<CampaignType> {
+export class FindAllCampaignTypesDto implements PaginationOptions<CampaignTypeEntity> {
   
   @IsNumber()
   @Type(()=>Number)
@@ -25,12 +25,12 @@ export class FindAllCampaignTypesDto implements PaginationOptions<CampaignType> 
   @IsOptional()
   @IsArray()
   @ApiPropertyOptional({ description: 'Fields to search by', isArray: true, type: String })
-  searchField?: (keyof CampaignType)[];
+  searchField?: (keyof CampaignTypeEntity)[];
 
   @IsOptional()
   @IsString()
   @ApiPropertyOptional({ description: 'Field to order by', enum: ['name', 'createdAt', 'updatedAt'] })
-  orderBy?: keyof CampaignType;
+  orderBy?: keyof CampaignTypeEntity;
 
   @IsOptional()
   @IsEnum(['ASC', 'DESC'])
@@ -39,5 +39,5 @@ export class FindAllCampaignTypesDto implements PaginationOptions<CampaignType> 
 
   @IsOptional()
   @ApiPropertyOptional({ description: 'Filters applied to the query', type: Object })
-  filters?: Partial<CampaignType>;
+  filters?: Partial<CampaignTypeEntity>;
 }

@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, BeforeInsert, BeforeUpdate, One
 import * as bcrypt from 'bcrypt';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '../../common/enums/roles.enum';
+import { LeadEntity } from '../../leads/entities/lead.entity';
 
 
 
@@ -46,6 +47,9 @@ export class UserEntity {
   })
   @ApiProperty({ description: 'The role of the user' })
   role: UserRole;
+
+  @OneToMany (()=>LeadEntity, (lead)=> lead.agent)
+  leads: LeadEntity
 
   @BeforeInsert()
   @BeforeUpdate()

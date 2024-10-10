@@ -7,7 +7,7 @@ import { Global, Module } from "@nestjs/common";
 import Redis from "ioredis";
 import { JobService } from "./job-service.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { CampaignData } from "../campaign-data/entities/campaign-datum.entity";
+import { CampaignDataEntity } from "../campaign-data/entities/campaign-datum.entity";
 import { OriginalCampaignData } from "../orignal-campaign-data/entities/orignal-campaign-datum.entity";
 import { CampaignTypesModule } from "../campaign-types/campaign-types.module";
 import { OriginalCampaignDataProcessor } from "./OGCamp.processor";
@@ -34,7 +34,7 @@ import { S3Module } from "../s3/s3.module";
 @Global()
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CampaignData,OriginalCampaignData]),
+    TypeOrmModule.forFeature([CampaignDataEntity,OriginalCampaignData]),
     CampaignTypesModule,
     S3Module,
     BullModule.forRoot({
