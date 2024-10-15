@@ -16,9 +16,14 @@ import { S3Module } from './s3/s3.module';
 import { JobsModule } from './job-service/job-service.module';
 import { FormsModule } from './forms/forms.module';
 import { LeadsModule } from './leads/leads.module';
+import { AttendanceModule } from './attendance/attendance.module';
+import { HolidaysModule } from './holidays/holidays.module';
+import { RedisModule } from './redis/redis.module';
+
 
 @Module({
   imports: [
+    RedisModule, 
     DatabaseModule, 
     UsersModule,  
     ConfigModule.forRoot(),
@@ -38,7 +43,9 @@ import { LeadsModule } from './leads/leads.module';
     S3Module,
     JobsModule,
     FormsModule,
-    LeadsModule], 
+    LeadsModule,
+    AttendanceModule,
+    HolidaysModule], 
   controllers: [AppController],
   providers: [AppService,IsUniqueConstraint],
 })

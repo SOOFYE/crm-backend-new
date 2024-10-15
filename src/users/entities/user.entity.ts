@@ -3,8 +3,7 @@ import * as bcrypt from 'bcrypt';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '../../common/enums/roles.enum';
 import { LeadEntity } from '../../leads/entities/lead.entity';
-
-
+import { AttendanceEntity } from '../../attendance/entities/attendance.entity';
 
 
 
@@ -50,6 +49,21 @@ export class UserEntity {
 
   @OneToMany (()=>LeadEntity, (lead)=> lead.agent)
   leads: LeadEntity
+
+  
+  @Column({ type: 'timestamptz', nullable: true }) // Or 'timestamp with time zone'
+  @ApiProperty({ description: 'Working start time for the user, with timezone' })
+  workingStartTime: Date;  // Use Date to store time with timezone
+
+  @Column({ type: 'timestamptz', nullable: true }) // Or 'timestamp with time zone'
+  @ApiProperty({ description: 'Working end time for the user, with timezone' })
+  workingEndTime: Date;  // Use Date to store time with timezone
+
+  @Column({nullable: true})
+  allowedBreakTimePerDay: number; // e.g., 60 minutes
+
+  @OneToMany(() => AttendanceEntity, attendance => attendance.agent)
+  attendances: AttendanceEntity[];
 
   @BeforeInsert()
   @BeforeUpdate()

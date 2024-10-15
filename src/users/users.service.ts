@@ -4,10 +4,10 @@ import { FindOptionsWhere, Repository } from 'typeorm';
 import { UserEntity } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { PaginationOptions } from 'src/common/interfaces/pagination-options.interface';
-import { PaginationResult } from 'src/common/interfaces/pagination-result.interface';
-import { PaginationUtil } from 'src/utils/pagination.util';
-import { UserRole } from 'src/common/enums/roles.enum';
+
+import { PaginationResult } from '../common/interfaces/pagination-result.interface'; 
+import { PaginationUtil } from '../utils/pagination.util'; 
+import { UserRole } from '../common/enums/roles.enum'; 
 import { FindAllUsersDto } from './dto/find-all-users.dto';
 
 @Injectable()
@@ -39,6 +39,25 @@ export class UsersService {
     try {
       return await this.paginationUtil.paginate(this.usersRepository, options);
     } catch (error) {
+      throw new HttpException(
+        {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          error: 'Error fetching users',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+
+  async findAllNoPagination(criteria: FindOptionsWhere<UserEntity>): Promise<UserEntity[]> {
+    try {
+      const users = await this.usersRepository.find({ where: criteria });
+      return users;
+    } catch (error) {
+      
+      console.log(error)
+      
       throw new HttpException(
         {
           status: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -131,4 +150,24 @@ export class UsersService {
       );
     }
   }
+
+
+
+
+  async getAgentWorkingHoursAndBreakTime(agentId: string) {
+    // Fetch agent from the database to get their working hours and break times
+    const agent = await this.findOne({ id: agentId });
+  
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
+  
+    return {
+      workingStartTime: agent.workingStartTime, // Assuming this is the time the agent starts
+      workingEndTime: agent.workingEndTime,     // Assuming this is the time the agent ends
+      allowedBreakTime: agent.allowedBreakTimePerDay.toString(), // Break time per day
+    };
+  }
+
+
 }

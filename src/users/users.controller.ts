@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -11,11 +11,12 @@ import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { Roles } from 'src/roles.decorator';
 import { UserRole } from 'src/common/enums/roles.enum';
 import { FindAllUsersDto } from './dto/find-all-users.dto';
+import { AuthenticatedRequest } from '../common/interfaces/authenticated-request.interface';
 
 @ApiTags('users')
 @Controller('users')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+// @ApiBearerAuth()
+// @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -25,6 +26,14 @@ export class UsersController {
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
+
+  @Get('workingHours')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+async getAgentWorkingHoursAndBreakTime(@Req() req: AuthenticatedRequest) {
+  const agentId = req.user.id;  // Get the agentId from the authenticated request (token)
+  return this.usersService.getAgentWorkingHoursAndBreakTime(agentId);
+}
 
   @Get()
   @ApiOperation({ summary: 'Get paginated users' })
@@ -38,6 +47,8 @@ export class UsersController {
     return this.usersService.findOne({id:id});
   }
 
+
+
   @Patch(':id')
   @ApiOperation({ summary: 'Update a user by ID' })
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
@@ -49,4 +60,7 @@ export class UsersController {
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
   }
+
+
+
 }
