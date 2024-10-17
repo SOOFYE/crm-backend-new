@@ -6,13 +6,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CampaignDataService } from '../campaign-data/campaign-data.service';
 import { CampaignsService } from '../campaigns/campaigns.service';
 import { UsersService } from '../users/users.service';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { Between, Repository, SelectQueryBuilder } from 'typeorm';
 import { LeadStatusEnum } from '../common/enums/lead-status.enum';
 import { FormsService } from '../forms/forms.service';
 import { PaginationUtil } from '../utils/pagination.util';
 import { PaginationOptions } from '../common/interfaces/pagination-options.interface';
 import { PaginationResult } from '../common/interfaces/pagination-result.interface';
 import { LeadsPaginationOptionsDto } from './dto/get-all-leads.dto';
+import { classToPlain, instanceToPlain } from 'class-transformer';
 
 
 @Injectable()
@@ -96,6 +97,22 @@ export class LeadsService {
     return await this.leadRepository.save(lead);
   }
 
+
+  async updateLeadStatus(leadId: string, newStatus: LeadStatusEnum): Promise<LeadEntity> {
+    // Find the lead by ID
+    const lead = await this.leadRepository.findOne({ where: { id: leadId } });
+
+    if (!lead) {
+      throw new NotFoundException(`Lead with ID ${leadId} not found`);
+    }
+
+    // Update the status
+    lead.status = newStatus;
+
+    // Save the updated lead
+    return await this.leadRepository.save(lead);
+  }
+
   async getPaginatedLeads(
     campaignIds: string[], // Filter by multiple campaign IDs
     formId?: string,       // Optionally filter by form
@@ -105,7 +122,10 @@ export class LeadsService {
     agentIds?: string[],   // Optionally filter by agent names
     statuses?: LeadStatusEnum[], // Optionally filter by lead statuses
     paginationOptions?: LeadsPaginationOptionsDto, // Custom pagination options
-  ): Promise<PaginationResult<LeadEntity>> {
+  ): Promise<any> {
+
+    console.log(phoneNumber)
+
     const joinOptions = {
       alias: 'lead',
       relations: {
@@ -131,9 +151,9 @@ export class LeadsService {
           qb.andWhere('lead.createdAt BETWEEN :start AND :end', { start: dateRange.start, end: dateRange.end });
         }
   
-        if (phoneNumber) {
-          qb.andWhere('lead.formData ->> :phoneField LIKE :phoneNumber', { phoneField: 'phoneNumber', phoneNumber: `%${phoneNumber}%` });
-        }
+        // if (phoneNumber) {
+        //   qb.andWhere('lead.formData ->> :phoneField LIKE :phoneNumber', { phoneField: 'phoneNumber', phoneNumber: `%${phoneNumber}%` });
+        // }
   
         if (agentIds && agentIds.length > 0) {
           qb.andWhere('agent.id IN (:...agentIds)', { agentIds });
@@ -146,7 +166,13 @@ export class LeadsService {
     };
   
     // Call the pagination utility
-    return this.paginationUtil.paginate(this.leadRepository, paginationOptions, joinOptions);
+      // Fetch the paginated result
+  const paginatedLeads = await this.paginationUtil.paginate(this.leadRepository, paginationOptions, joinOptions);
+
+  // Transform the result using class-transformer to exclude `@Exclude()` fields
+  const transformedResult = instanceToPlain(paginatedLeads);
+
+  return transformedResult;
   }
 
 
@@ -164,4 +190,234 @@ export class LeadsService {
 
     return lead;
   }
+
+
+
+  async getTotalLeadsSubmitted(
+    campaignId?: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<number> {
+    const query = this.leadRepository.createQueryBuilder('lead')
+      .where('lead.deletedAt IS NULL');
+  
+    if (campaignId) {
+      query.andWhere('lead.campaignId = :campaignId', { campaignId });
+    }
+  
+    if (startDate && endDate) {
+      query.andWhere('lead.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate });
+    }
+  
+    const totalLeads = await query.getCount();
+    return totalLeads;
+  }
+
+
+  async getExpectedRevenue(
+    campaignId?: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<number> {
+    const query = this.leadRepository.createQueryBuilder('lead')
+      .where('lead.status = :status', { status: LeadStatusEnum.PENDING })
+      .andWhere('lead.deletedAt IS NULL');
+  
+    if (campaignId) {
+      query.andWhere('lead.campaignId = :campaignId', { campaignId });
+    }
+  
+    if (startDate && endDate) {
+      query.andWhere('lead.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate });
+    }
+  
+    const totalExpectedRevenue = await query
+      .select('SUM(lead.revenue)', 'totalRevenue')
+      .getRawOne();
+    return totalExpectedRevenue?.totalRevenue || 0;
+  }
+
+
+  async getSecuredRevenue(
+    campaignId?: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<number> {
+    const query = this.leadRepository.createQueryBuilder('lead')
+      .where('lead.status = :status', { status: LeadStatusEnum.APPROVED })
+      .andWhere('lead.deletedAt IS NULL');
+  
+    if (campaignId) {
+      query.andWhere('lead.campaignId = :campaignId', { campaignId });
+    }
+  
+    if (startDate && endDate) {
+      query.andWhere('lead.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate });
+    }
+  
+    const totalSecuredRevenue = await query
+      .select('SUM(lead.revenue)', 'totalRevenue')
+      .getRawOne();
+    return totalSecuredRevenue?.totalRevenue || 0;
+  }
+
+
+  async getInactiveLeads(
+    campaignId?: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<number> {
+    const query = this.leadRepository.createQueryBuilder('lead')
+      .where('lead.status = :status', { status: LeadStatusEnum.INACTIVE })
+      .andWhere('lead.deletedAt IS NULL');
+  
+    if (campaignId) {
+      query.andWhere('lead.campaignId = :campaignId', { campaignId });
+    }
+  
+    if (startDate && endDate) {
+      query.andWhere('lead.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate });
+    }
+  
+    const totalInactiveLeads = await query.getCount();
+    return totalInactiveLeads;
+  }
+
+  async getProcessedDataMetrics(
+    processedDataId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<any> {
+    // Validate processedDataId and fetch processed data
+    const processedData = await this.campaignDataService.findOne({ id: processedDataId });
+    if (!processedData) {
+      throw new NotFoundException(`Processed data with ID ${processedDataId} not found`);
+    }
+  
+    // Fetch leads associated with processed data within the date range
+    const leads = await this.leadRepository.find({
+      where: {
+        processedData: { id: processedDataId },
+        createdAt: Between(startDate, endDate),
+      },
+    });
+  
+    if (!leads || leads.length === 0) {
+      return {
+        totalRevenue: 0,
+        totalLeads: 0,
+        approvedLeads: 0,
+        conversionRate: 0,
+        revenueOverTime: [],
+      };
+    }
+  
+    // Calculate metrics
+    const totalLeads = leads.length;
+    const approvedLeads = leads.filter(lead => lead.status === LeadStatusEnum.APPROVED).length;
+    const totalRevenue = leads
+      .filter(lead => lead.status === LeadStatusEnum.APPROVED)
+      .reduce((sum, lead) => sum + lead.revenue, 0);
+    const conversionRate = (approvedLeads / totalLeads) * 100;
+  
+    // Revenue over time
+    const revenueOverTime = await this.leadRepository
+      .createQueryBuilder('lead')
+      .select('DATE(lead.createdAt)', 'date')
+      .addSelect('SUM(lead.revenue)', 'totalRevenue')
+      .where('lead.processedDataId = :processedDataId', { processedDataId })
+      .andWhere('lead.status = :status', { status: LeadStatusEnum.APPROVED })
+      .andWhere('lead.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .groupBy('date')
+      .orderBy('date')
+      .getRawMany();
+  
+    return {
+      totalRevenue,
+      totalLeads,
+      approvedLeads,
+      conversionRate,
+      revenueOverTime,
+    };
+  }
+
+  async getLeadsOverTimeRange(
+    campaignId: string,
+    startDate: Date,
+    endDate: Date,
+    groupBy: 'day' | 'week' | 'month',
+  ): Promise<any> {
+    const queryBuilder = this.leadRepository.createQueryBuilder('lead')
+      .where('lead.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate });
+  
+    if (campaignId) {
+      queryBuilder.andWhere('lead.campaignId = :campaignId', { campaignId });
+    }
+  
+    // Start by selecting nothing to prevent selecting all columns by default
+    queryBuilder.select([]);
+  
+    switch (groupBy) {
+      case 'day':
+        queryBuilder.addSelect('DATE(lead.createdAt)', 'date');
+        queryBuilder.addGroupBy('date');
+        break;
+      case 'week':
+        queryBuilder.addSelect('EXTRACT(WEEK FROM lead.createdAt)', 'week');
+        queryBuilder.addGroupBy('week');
+        break;
+      case 'month':
+        queryBuilder.addSelect('EXTRACT(MONTH FROM lead.createdAt)', 'month');
+        queryBuilder.addGroupBy('month');
+        break;
+    }
+  
+    // Include the aggregate COUNT function for lead.id
+    queryBuilder.addSelect('COUNT(lead.id)', 'totalLeads');
+  
+    console.log('********************************************************************');
+  
+    // Return the results
+    return queryBuilder.getRawMany();
+  }
+
+  async getRevenueOverTimeRange(
+    campaignId: string,
+    startDate: Date,
+    endDate: Date,
+    groupBy: 'day' | 'week' | 'month',
+  ): Promise<any> {
+    const queryBuilder = this.leadRepository.createQueryBuilder('lead')
+      .where('lead.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .andWhere('lead.status = :approvedStatus', { approvedStatus: LeadStatusEnum.APPROVED });
+  
+    if (campaignId) {
+      queryBuilder.andWhere('lead.campaignId = :campaignId', { campaignId });
+    }
+  
+    // Clear default selection to prevent selecting all columns
+    queryBuilder.select([]);
+  
+    switch (groupBy) {
+      case 'day':
+        queryBuilder.addSelect('DATE(lead.createdAt)', 'date');
+        queryBuilder.addGroupBy('date');
+        break;
+      case 'week':
+        queryBuilder.addSelect('EXTRACT(WEEK FROM lead.createdAt)', 'week');
+        queryBuilder.addGroupBy('week');
+        break;
+      case 'month':
+        queryBuilder.addSelect('EXTRACT(MONTH FROM lead.createdAt)', 'month');
+        queryBuilder.addGroupBy('month');
+        break;
+    }
+  
+    // Include the aggregate SUM function for lead.revenue
+    queryBuilder.addSelect('SUM(lead.revenue)', 'totalRevenue');
+  
+    return queryBuilder.getRawMany();
+  }
+
+
 }

@@ -166,34 +166,45 @@ private async generateFilterCriteriaFromCsv(csvFile: Express.Multer.File): Promi
         where: { id },
         relations: ['preprocessedData'],
       });
-  
+
       if (!originalData) {
         throw new HttpException('Original campaign data not found', HttpStatus.NOT_FOUND);
       }
-  
+
       const preprocessedData = originalData.preprocessedData;
-  
-      // If there's associated preprocessed data, soft delete it and unlink from any campaign
+
+      // If preprocessed data exists, unlink it from any associated campaign and soft delete it
       if (preprocessedData) {
         const campaignData = preprocessedData;
-  
-        // Unlink the campaignData from any associated campaign
+
+        // If the preprocessed data is linked to a campaign, unlink it
         if (campaignData.campaign) {
-          // Unlink the processedData from the campaign entity
-          const campaign = campaignData.campaign;
-          campaign.processedData = null;
+          const campaign = await this.campaignsRepository.findOne({
+            where: { id: campaignData.campaign.id },
+            relations: ['processedData'],
+          });
+
+          if (campaign) {
+            // Unlink the processed data from the campaign
+            campaign.processedData = campaign.processedData.filter(
+              (data) => data.id !== campaignData.id
+            );
+
+            // Save the updated campaign
+            await this.campaignsRepository.save(campaign);
+          }
+
+          // Unlink the campaign reference from preprocessed data
           campaignData.campaign = null;
-  
-          // Save the campaign entity after unlinking
-          await this.campaignsRepository.save(campaign);
         }
-  
-        // Soft delete the campaignData
+
+        // Soft delete the preprocessed data
         await this.campaignDataRepository.softDelete(campaignData.id);
       }
-  
+
       // Soft delete the original data
       await this.originalDataRepository.softDelete(id);
+
     } catch (error) {
       throw new HttpException(
         {
