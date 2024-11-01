@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { LeadEntity } from './entities/lead.entity';
@@ -29,37 +29,57 @@ export class LeadsService {
   ) {}
 
   async createLead(agentId: string, createLeadDto: any): Promise<LeadEntity> {
-    const { campaignId, formId, processedDataId, selectedProducts, phoneNumberLead, ...formFields } = createLeadDto;
-  
-    const campaign = await this.campaignsService.getCampaignById(campaignId);
-    const agent = await this.usersService.findOne({ id: agentId });
-    const processedData = await this.campaignDataService.findOne({ id: processedDataId });
-    const form = await this.formService.findOne({ id: formId });
-  
-    // Calculate revenue based on selected products
-    let revenue = 0;
-    if (selectedProducts) {
-      selectedProducts.forEach((productName: string) => {
-        const product = form.productsAndPrices.find(p => p.name === productName);
-        if (product) {
-          revenue += product.price;
-        }
-      });
+    const { campaignId, formId, processedDataId, selectedProducts, phoneNumberLead,...formFields } = createLeadDto;
+    console.log(createLeadDto)
+    // const formFields = createLeadDto.formData;
+
+    // Validate mandatory fields
+    if (!campaignId || !formId || !agentId || !phoneNumberLead) {
+      throw new BadRequestException('Missing required fields.');
     }
-  
+
+    const campaign = await this.campaignsService.getCampaignById(campaignId);
+    if (!campaign) {
+      throw new BadRequestException('Invalid campaign ID.');
+    }
+
+    const agent = await this.usersService.findOne({ id: agentId });
+    if (!agent) {
+      throw new BadRequestException('Invalid agent ID.');
+    }
+
+    const processedData = await this.campaignDataService.findOne({ id: processedDataId });
+    if (!processedData) {
+      throw new BadRequestException('Invalid processed data ID.');
+    }
+
+    const form = await this.formService.findOne({ id: formId });
+    if (!form) {
+      throw new BadRequestException('Invalid form ID.');
+    }
+
+    // Calculate revenue based on selected products
+    const revenue = this.calculateRevenue(form, selectedProducts);
+
+
+    // Validate that revenue does not exceed the database limit (99999999.99)
+    if (revenue > 99999999.99) {
+      throw new BadRequestException('Calculated revenue exceeds the maximum allowed value.');
+    }
+
     // Create a new lead with formData and selectedProducts stored separately
     const lead = this.leadRepository.create({
-      phoneNumber:phoneNumberLead,
+      phoneNumber: phoneNumberLead,
       campaign,
       agent,
       form,
       processedData,
-      formData: formFields,
+      formData: formFields, // Nested form data including "Other" fields
       selectedProducts,
-      revenue,
+      revenue: revenue, 
       status: LeadStatusEnum.PENDING,
     });
-  
+
     return await this.leadRepository.save(lead);
   }
 
@@ -80,23 +100,30 @@ export class LeadsService {
       lead.phoneNumber = phoneNumberLead;
     }
 
-    // Update selected products and recalculate revenue
-    let revenue = 0;
-    if (selectedProducts && selectedProducts.length > 0) {
-      lead.selectedProducts = selectedProducts;
-      selectedProducts.forEach((productName: string) => {
-        const product = lead.form.productsAndPrices.find(p => p.name === productName);
-        if (product) {
-          revenue += product.price;
-        }
-      });
-      lead.revenue = revenue;
-    }
 
+    const revenue = this.calculateRevenue(lead.form, selectedProducts);
+    lead.revenue = revenue;
+    
     // Save updated lead
     return await this.leadRepository.save(lead);
   }
 
+
+  calculateRevenue(form: any, selectedProducts: string[]): number {
+    let revenue = 0;
+    if (selectedProducts && selectedProducts.length > 0) {
+      selectedProducts.forEach((productName: string) => {
+        const product = form.productsAndPrices.find(p => p.name === productName);
+        if (product) {
+          const price = parseFloat(product.price);
+          if (!isNaN(price)) {
+            revenue += price;
+          }
+        }
+      });
+    }
+    return parseFloat(revenue.toFixed(2)); // Ensure revenue has two decimal places
+  }
 
   async updateLeadStatus(leadId: string, newStatus: LeadStatusEnum): Promise<LeadEntity> {
     // Find the lead by ID
@@ -112,6 +139,10 @@ export class LeadsService {
     // Save the updated lead
     return await this.leadRepository.save(lead);
   }
+
+
+
+
 
   async getPaginatedLeads(
     campaignIds: string[], // Filter by multiple campaign IDs
@@ -178,17 +209,18 @@ export class LeadsService {
 
 
 
-  async getLeadBySingleId(leadId: string): Promise<LeadEntity> {
+  async getLeadBySingleId(leadId: string): Promise<Record<string, any>> {
     const lead = await this.leadRepository.findOne({
       where: { id: leadId },
       relations: ['campaign', 'agent', 'form','processedData'], // Make sure to load necessary relations
     });
 
+
     if (!lead) {
       throw new NotFoundException('Lead not found');
     }
 
-    return lead;
+    return instanceToPlain (lead);
   }
 
 

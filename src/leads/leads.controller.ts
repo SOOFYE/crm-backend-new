@@ -68,6 +68,9 @@ async updateLead(
   @UploadedFiles() files: Array<Express.Multer.File>
 ) {
 
+  console.log(files,formData)
+
+
   // Upload new files to S3
   const fileUploads = await Promise.all(
     files.map(file => this.s3Service.uploadFile('form-data', file))

@@ -20,18 +20,28 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto): Promise<UserEntity> {
     try {
-      if(await this.findOne({username: createUserDto.username}))
+      const existingUser = await this.usersRepository.findOne({ where: { username: createUserDto.username } });
+      if (existingUser) {
         throw new HttpException(
           {
             status: HttpStatus.BAD_REQUEST,
-            error: "username already exists!",
+            error: 'Username already exists!',
           },
           HttpStatus.BAD_REQUEST,
-        ); 
-      const user = this.usersRepository.create({...createUserDto,role:UserRole.AGENT});
+        );
+      }
+
+      // Create the new user entity
+      const user = this.usersRepository.create({
+        ...createUserDto,
+        role: UserRole.AGENT,
+        cnic_photo: createUserDto.cnic_photo || null, // Save CNIC photo URL if provided
+      });
+
+      // Save the user entity
       return await this.usersRepository.save(user);
     } catch (error) {
-      throw error
+      throw error;
     }
   }
 
@@ -86,52 +96,29 @@ export class UsersService {
     }
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<UserEntity> {
-    try {
-      // Check if the username is being updated
-      if (updateUserDto.username) {
-        // Check if another user with the same username exists
-        const existingUser = await this.usersRepository.findOne({
-          where: { username: updateUserDto.username },
-        });
-  
-        if (existingUser && existingUser.id !== id) {
-          throw new HttpException(
-            {
-              status: HttpStatus.BAD_REQUEST,
-              error: 'Username already exists',
-            },
-            HttpStatus.BAD_REQUEST,
-          );
-        }
-      }
-  
-      // Preload the user entity with the updated data
-      const user = await this.usersRepository.preload({
-        id,
-        ...updateUserDto,
-      });
-  
-      if (!user) {
-        throw new NotFoundException(`User with ID ${id} not found`);
-      }
-  
-      // Save the updated user
-      return await this.usersRepository.save(user);
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new HttpException(
-        {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: `Error updating user with ID ${id}: ${error.message}`,
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    cnicPhotoUrl?: string,  // Optional CNIC photo URL
+  ): Promise<UserEntity> {
+    const user = await this.findOne({id:id});
 
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    // Update the user's details
+    Object.assign(user, updateUserDto);
+
+    // Update CNIC photo URL if provided
+    if (cnicPhotoUrl) {
+      user.cnic_photo = cnicPhotoUrl;
+    }
+
+    // Save and return the updated user
+    return this.usersRepository.save(user);
+  }
+  
   
   async remove(id: string): Promise<void> {
     try {
@@ -165,7 +152,7 @@ export class UsersService {
     return {
       workingStartTime: agent.workingStartTime, // Assuming this is the time the agent starts
       workingEndTime: agent.workingEndTime,     // Assuming this is the time the agent ends
-      allowedBreakTime: agent.allowedBreakTimePerDay.toString(), // Break time per day
+      allowedBreakTime: agent?.allowedBreakTimePerDay.toString() || null, // Break time per day
     };
   }
 
