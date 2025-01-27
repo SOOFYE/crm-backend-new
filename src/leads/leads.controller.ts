@@ -280,12 +280,54 @@ async updateLeadStatus(
   }
 
 
+
+
+  @Get('/export-to-excel')
+  @ApiOperation({ summary: 'Export leads to an Excel file and send via email' })
+  @ApiQuery({ name: 'campaignId', required: true, description: 'ID of the campaign to filter leads' })
+  @ApiQuery({ name: 'startDate', required: true, type: String, description: 'Start date of the range (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'endDate', required: true, type: String, description: 'End date of the range (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'recipientEmail', required: true, type: String, description: 'Email address of the recipient' })
+  async exportLeadsToExcel(
+    @Query('campaignId') campaignId: string,
+    @Query('startDate') startDateStr: string,
+    @Query('endDate') endDateStr: string,
+    @Query('recipientEmail') recipientEmail: string,
+  ): Promise<{ message: string }> {
+    // Validate query parameters
+    if (!campaignId || !startDateStr || !endDateStr || !recipientEmail) {
+      throw new BadRequestException('All parameters (campaignId, startDate, endDate, recipientEmail) are required.');
+    }
+
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(endDateStr);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new BadRequestException('Invalid date format for startDate or endDate. Use YYYY-MM-DD format.');
+    }
+
+    if (startDate > endDate) {
+      throw new BadRequestException('startDate cannot be later than endDate.');
+    }
+
+    // Call service method to handle export and email
+    await this.leadsService.exportLeadsToExcel(
+      campaignId,
+      { start: startDate, end: endDate },
+      recipientEmail,
+    );
+
+    return { message: 'Excel file generated and sent successfully!' };
+  }
+
+
   @Get(':id')
   async getLeadBySingleId(@Param('id') id: string) {
     return await this.leadsService.getLeadBySingleId(id);
   }
 
+}
 
   
 
-}
+

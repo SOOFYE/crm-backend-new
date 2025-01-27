@@ -14,7 +14,8 @@ import { PaginationOptions } from '../common/interfaces/pagination-options.inter
 import { PaginationResult } from '../common/interfaces/pagination-result.interface';
 import { LeadsPaginationOptionsDto } from './dto/get-all-leads.dto';
 import { classToPlain, instanceToPlain } from 'class-transformer';
-
+import * as XLSX from 'xlsx';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class LeadsService {
@@ -452,4 +453,87 @@ export class LeadsService {
   }
 
 
-}
+  async exportLeadsToExcel(
+    campaignId: string,
+    dateRange: { start: Date; end: Date },
+    recipientEmail: string,
+  ): Promise<string> {
+    // Fetch leads based on filters
+    const leads = await this.leadRepository.find({
+      where: {
+        campaign: { id: campaignId },
+        createdAt: Between(dateRange.start, dateRange.end),
+      },
+      relations: ['campaign', 'agent', 'form'],
+    });
+  
+    if (!leads.length) {
+      throw new Error('No leads found for the given filters.');
+    }
+  
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+  
+    // Create the "Summary" sheet
+    const summaryData = leads.map((lead,index) => ({
+      ID: lead.id,
+      PhoneNumber: lead.phoneNumber,
+      Agent: lead.agent?.username || 'N/A',
+      Status: lead.status,
+      CreatedAt: lead.createdAt.toISOString(),
+      LeadDetails: `Lead-${index + 1} Sheet`,
+    }));
+    const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+  
+    // Add individual sheets for each lead
+    leads.forEach((lead, index) => {
+      const sanitizedSheetName = `Lead-${index + 1}`; // Ensure sheet name is within 31 chars
+      const leadData = [
+        ...Object.entries(lead.formData || {}).map(([key, value]) => ({
+          Key: key,
+          Value: value,
+        })),
+      ];
+  
+      const leadSheet = XLSX.utils.json_to_sheet(leadData);
+      XLSX.utils.book_append_sheet(workbook, leadSheet, sanitizedSheetName);
+    });
+  
+    // Write the workbook to a buffer
+    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+    
+    const mailOptions = {
+      from: process.env.SMTP_FROM,
+      to: recipientEmail,
+      subject: `Leads Data for Campaign ${campaignId}`,
+      text: 'Attached is the Excel file containing the filtered leads data.',
+      attachments: [
+        {
+          filename: `leads_${campaignId}.xlsx`,
+          content: excelBuffer,
+        },
+      ],
+    };
+    
+    transporter.sendMail(mailOptions, (err, info) => {
+      if (err) {
+        console.error('Error sending email:', err);
+      } else {
+        console.log('Email sent:', info.response);
+      }
+    });
+
+  
+    return 'Excel file emailed successfully!';
+  }
+}  
