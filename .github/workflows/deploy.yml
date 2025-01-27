@@ -36,5 +36,5 @@ jobs:
           git pull origin master
           npm install
           npm run build
-          npx typeorm migration:run # Runs migrations
+          npm run migration:run # Runs migrations
           pm2 restart all
