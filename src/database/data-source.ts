@@ -23,4 +23,7 @@ export const AppDataSource = new DataSource({
     entitiesDir: 'src',
     migrationsDir: 'src/database/migrations',
   },
+  ssl: configService.get<boolean>('DATABASE_SSL', false) // Enable SSL if needed
+  ? { rejectUnauthorized: false } // Optional for RDS SSL connections
+  : false,
 } as DataSourceOptions);
