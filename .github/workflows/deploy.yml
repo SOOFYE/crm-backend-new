@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main  # Deploy when code is pushed to main branch
+      - master  # Deploy when code is pushed to main branch
 
 jobs:
   deploy:
@@ -33,7 +33,7 @@ jobs:
         port: 22
         script: |
           cd ./crm-backend-new
-          git pull origin main
+          git pull origin master
           npm install
           npm run build
           npx typeorm migration:run # Runs migrations

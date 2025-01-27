@@ -1,9 +1,9 @@
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from "typeorm";
+import { CampaignDataEntity } from "../../campaign-data/entities/campaign-datum.entity";
+import { CampaignTypeEntity } from "../../campaign-types/entities/campaign-type.entity";
+import { FilteringModeEnum } from "../../common/enums/filtering-mode.enum";
 
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, DeleteDateColumn, UpdateDateColumn, OneToOne, JoinColumn } from 'typeorm';
-import { CampaignDataEntity } from '../../campaign-data/entities/campaign-datum.entity';
-import { CampaignTypeEntity } from '../../campaign-types/entities/campaign-type.entity';
 
-import { FilteringModeEnum } from '../../common/enums/filtering-mode.enum';
 
 
 
