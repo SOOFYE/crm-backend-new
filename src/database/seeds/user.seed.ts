@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { UserRole } from 'src/common/enums/roles.enum';
-import { UserEntity } from 'src/users/entities/user.entity';
-import { UsersService } from 'src/users/users.service';
+import { Injectable } from "@nestjs/common";
+import { UserRole } from "../../common/enums/roles.enum";
+import { UserEntity } from "../../users/entities/user.entity";
+import { UsersService } from "../../users/users.service";
+
 
 @Injectable()
 export class UserSeeder {
@@ -10,24 +11,24 @@ export class UserSeeder {
   async seed() {
     const users: Partial<UserEntity>[] = [
       {
-        firstname: 'Admin',
-        lastname: 'User',
-        username: 'admin',
-        email: 'admin@example.com',
+        firstname: 'Sufyan',
+        lastname: 'Imran',
+        username: 'sufyanImran',
+        email: 'syedsufyan36@gmail.com',
         phoneNumber: '1234567890',
-        password: 'adminpassword',
+        password: 'adminpassword123',
         role: UserRole.ADMIN,
-      },
-      {
-        firstname: 'John',
-        lastname: 'Doe',
-        username: 'johndoe',
-        email: 'john@example.com',
-        phoneNumber: '0987654321',
-        password: 'johndoe123',
-        role: UserRole.AGENT,
+        workingStartTime: new Date('2025-01-01T09:00:00Z'), // Example time
+        workingEndTime: new Date('2025-01-01T17:00:00Z'), // Example time
+        allowedBreakTimePerDay: '60',
+        cnic: '12345-6789012-3',
+        cnic_photo: '',
+        bank_account: '123456789012345',
+        address: '123 Main Street, Lahore',
+        emergency_no: '9876543210',
       },
     ];
+
 
     for (const user of users) {
         await this.usersService.create(user as UserEntity);

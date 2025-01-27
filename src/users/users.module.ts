@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { UsersController } from './users.controller';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserEntity } from './entities/user.entity';
-import { UtilsModule } from 'src/utils/utils.module';
-import { S3Module } from '../s3/s3.module';
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { S3Module } from "../s3/s3.module";
+import { UtilsModule } from "../utils/utils.module";
+import { UserEntity } from "./entities/user.entity";
+import { UsersController } from "./users.controller";
+import { UsersService } from "./users.service";
+import { Module } from "@nestjs/common";
+
 
 
 @Module({

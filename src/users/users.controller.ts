@@ -1,19 +1,17 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { PaginationResult } from 'src/common/interfaces/pagination-result.interface';
-import { UserEntity } from './entities/user.entity';
-import { PaginationOptions } from 'src/common/interfaces/pagination-options.interface';
-import { RolesGuard } from 'src/guards/roles.guard';
-import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
-import { Roles } from 'src/roles.decorator';
-import { UserRole } from 'src/common/enums/roles.enum';
-import { FindAllUsersDto } from './dto/find-all-users.dto';
-import { AuthenticatedRequest } from '../common/interfaces/authenticated-request.interface';
-import { S3Service } from '../s3/s3.service';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Controller, Post, UseInterceptors, Body, UploadedFile, Get, UseGuards, Req, Query, Param, Patch, Delete } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { AuthenticatedRequest } from "../common/interfaces/authenticated-request.interface";
+import { PaginationResult } from "../common/interfaces/pagination-result.interface";
+import { JwtAuthGuard } from "../guards/jwt-auth.guard";
+import { RolesGuard } from "../guards/roles.guard";
+import { S3Service } from "../s3/s3.service";
+import { CreateUserDto } from "./dto/create-user.dto";
+import { FindAllUsersDto } from "./dto/find-all-users.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
+import { UserEntity } from "./entities/user.entity";
+import { UsersService } from "./users.service";
+
 
 @ApiTags('users')
 @Controller('users')
